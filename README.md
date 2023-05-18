@@ -124,7 +124,7 @@ export class MyController {
 <h1>Hello, {{= name }}</h1>
 ```
 
-### 6. ErrorHandler
+### 5. ErrorHandler
 
 If an error handler decorator is defined, all errors within the framework will
 be handled by it. Like middleware, you can define it in any class method but
