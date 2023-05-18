@@ -1,15 +1,14 @@
-# Deno-Core
+# Deno-Spring
 
 A compact, high-performance and full-featured web server framework in Deno.
 
 ## Shortcut mode
 
 ```ts
-import { core } from "https://deno.land/x/core/mod.ts";
+import app from "https://deno.land/x/spring/mod.ts";
 
-core
-  .get("/:user", (ctx) => ctx.params.user)
-  .listen();
+app.get("/:user", (ctx) => ctx.params.user);
+app.listen();
 ```
 
 Note that features such as plugins, middlewares, template engine and unified
@@ -25,17 +24,17 @@ decorators at startup, it is almost the same in runtime.
 
 ```ts
 // main.ts
-import { core } from "https://deno.land/x/core/mod.ts";
+import app from "https://deno.land/x/spring/mod.ts";
 import "./controllers/MyController.ts"; // Do not forget import the controllers
 
-core.listen();
+app.listen();
 ```
 
 ### 1. Controllers
 
 ```ts
 // controller.ts
-import { Context, Controller, Get } from "https://deno.land/x/core/mod.ts";
+import { Context, Controller, Get } from "https://deno.land/x/spring/mod.ts";
 
 @Controller("/prefix")
 export class MyController {
@@ -53,7 +52,7 @@ role of the middleware parameter is to set the execution priority.
 
 ```ts
 // middleware.ts
-import { Context, Middleware } from "https://deno.land/x/core/mod.ts";
+import { Context, Middleware } from "https://deno.land/x/spring/mod.ts";
 
 export class MyMiddleware {
   @Middleware(2)
@@ -74,7 +73,7 @@ bound to the context.
 
 ```ts
 // plugin.ts
-import { Plugin } from "https://deno.land/x/core/mod.ts";
+import { Plugin } from "https://deno.land/x/spring/mod.ts";
 
 @Plugin("redis")
 export class Redis {
@@ -103,14 +102,14 @@ template syntax.
 
 ```ts
 // main.ts
-core.engine({ // Engine options, not necessary
+app.engine({ // Engine options, not necessary
   root: "", // The root of template files
   imports: {} // Global imports for template
 })
 .listen();
 
 // controller.ts
-import { Context, Controller, Get, Template } from "https://deno.land/x/core/mod.ts";
+import { Context, Controller, Get, Template } from "https://deno.land/x/spring/mod.ts";
 
 @Controller("/prefix")
 export class MyController {
@@ -125,29 +124,6 @@ export class MyController {
 <h1>Hello, {{= name }}</h1>
 ```
 
-### 5. JSX
-
-```ts
-// controller.ts
-/** @jsx h */
-import { Context, Controller, Get, h } from "https://deno.land/x/core/mod.ts";
-
-const Homepage = ({ props }: any) => (
-  <div>
-    <h1>Hello, {props.name}</h1>
-  </div>
-);
-
-@Controller()
-export class JsxController {
-  @Get("/jsx")
-  jsx(ctx: Context) {
-    const data = { name: "jsx" };
-    return <Homepage props={data} />;
-  }
-}
-```
-
 ### 6. ErrorHandler
 
 If an error handler decorator is defined, all errors within the framework will
@@ -156,7 +132,7 @@ only once. This decorator has no parameters.
 
 ```ts
 // error.ts
-import { Context, ErrorHandler } from "https://deno.land/x/core/mod.ts";
+import { Context, ErrorHandler } from "https://deno.land/x/spring/mod.ts";
 
 export class AnyClass {
   @ErrorHandler()
@@ -170,8 +146,8 @@ export class AnyClass {
 
 ### Constructor
 
-To start the web server, you simply write a single line of code `core.listen()`.
-The instance of `core` has three main methods as follow:
+To start the web server, you simply write a single line of code `app.listen()`.
+The instance of `app` has three main methods as follow:
 
 - `serve(path)` `path` is the relative path of static resources directory.
   `serve` method is the syntactic sugar for `get` routing, so the `path` must
@@ -192,20 +168,20 @@ refer to: https://github.com/zhmushan/router.
 
 ### Decorators
 
-| Name           | Type            | Parameters | Parameter description         |
-| -------------- | --------------- | ---------- | ----------------------------- |
-| @Controller    | ClassDecorator  | string     | Prefix for request route      |
-| @Plugin        | ClassDecorator  | string     | Plugin name with context      |
-| @All           | MethodDecorator | string     | Route path                    |
-| @Get           | MethodDecorator | string     | Route path                    |
-| @Post          | MethodDecorator | string     | Route path                    |
-| @Put           | MethodDecorator | string     | Route path                    |
-| @Delete        | MethodDecorator | string     | Route path                    |
-| @Patch         | MethodDecorator | string     | Route path                    |
-| @Head          | MethodDecorator | string     | Route path                    |
-| @Options       | MethodDecorator | string     | Route path                    |
-| @Template      | MethodDecorator | string     | Template file path            |
-| @Middleware    | MethodDecorator | number     | Middleware execution priority |
+| Name          | Type            | Parameters | Parameter description         |
+| ------------- | --------------- | ---------- | ----------------------------- |
+| @Controller   | ClassDecorator  | string     | Prefix for request route      |
+| @Plugin       | ClassDecorator  | string     | Plugin name with context      |
+| @All          | MethodDecorator | string     | Route path                    |
+| @Get          | MethodDecorator | string     | Route path                    |
+| @Post         | MethodDecorator | string     | Route path                    |
+| @Put          | MethodDecorator | string     | Route path                    |
+| @Delete       | MethodDecorator | string     | Route path                    |
+| @Patch        | MethodDecorator | string     | Route path                    |
+| @Head         | MethodDecorator | string     | Route path                    |
+| @Options      | MethodDecorator | string     | Route path                    |
+| @Template     | MethodDecorator | string     | Template file path            |
+| @Middleware   | MethodDecorator | number     | Middleware execution priority |
 | @ErrorHandler | MethodDecorator | undefined  |                               |
 
 ### Context
@@ -256,7 +232,6 @@ contains properties and methods related to requests and responses.
 - `ctx.view(tmplFile, data)` If the controller method does not add a `@Template`
   decorator, you can call this method to return the rendered text content.
 - `ctx.render(tmplText, data)` Render template text, usually not needed.
-- `ctx.renderJsx(node)` Render template node, usually not needed.
 - `ctx.error`
 - `ctx.throw(message[, status])`
 

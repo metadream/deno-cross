@@ -8,7 +8,8 @@ import { CookieOptions, HttpError } from "./defs.ts";
 export class Context {
 
     // Custom properties
-    [index: string]: unknown;
+    // deno-lint-ignore no-explicit-any
+    [index: string]: any;
 
     #request: Request;
     #response: { headers: Headers; status?: number; statusText?: string }

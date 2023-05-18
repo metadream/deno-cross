@@ -1,6 +1,5 @@
 import { ConnInfo, extname, resolve, serve } from "./deps.ts";
 import { Callback, HttpStatus, Method, Mime } from "./defs.ts";
-import { Node, renderJsx } from "./jsx.ts";
 import { Context } from "./context.ts";
 import { Engine } from "./engine.ts";
 import { Metadata } from "./metadata.ts";
@@ -72,14 +71,14 @@ export class Server {
         this.#compose();
 
         if (this.#router.routes.length === 0) {
-            console.error(`\x1b[31m[Core] Error: No route found\x1b[0m`);
-            console.log(`[Core] Please make sure you have imported the decorator module`);
+            console.error(`\x1b[31m[Spring] Error: No route found\x1b[0m`);
+            console.log(`[Spring] Please make sure you have imported the decorator module`);
         } else {
             port = port || 3000;
-            serve((request: Request, connInfo: ConnInfo) => this.#handleRequest(request, connInfo), { port });
-            console.log(`\x1b[90m[Core] ${this.#version()}\x1b[0m`);
-            console.log(`\x1b[90m[Core] Repository: https://github.com/metadream/deno-core\x1b[0m`);
-            console.log(`[Core] Server is running at \x1b[4m\x1b[36mhttp://localhost:${port}\x1b[0m`);
+            serve(this.#handleRequest.bind(this), { port });
+            console.log(`\x1b[90m[Spring] ${this.#version()}\x1b[0m`);
+            console.log(`\x1b[90m[Spring] Repository: https://github.com/metadream/deno-spring\x1b[0m`);
+            console.log(`[Spring] Server is running at \x1b[4m\x1b[36mhttp://localhost:${port}\x1b[0m`);
         }
         return this;
     }
@@ -95,7 +94,6 @@ export class Server {
         ctx.remoteAddr = connInfo.remoteAddr;
         ctx.view = this.#engine.view.bind(this.#engine);
         ctx.render = this.#engine.render.bind(this.#engine);
-        ctx.renderJsx = renderJsx;
         Object.assign(ctx, Metadata.plugins);
 
         let body = null;
@@ -105,24 +103,16 @@ export class Server {
 
             if (route) {
                 ctx.params = route.params || {};
-
                 await this.#callMiddlewares(ctx);
                 body = await route.callback(ctx);
-
                 if (route.template) {
                     body = await ctx.view(route.template, body);
-
-                } else if (body !== undefined && body !== null) {
-                    const node = body as Node; // JSX Node
-                    if (node.tag !== undefined && node.tag !== null) {
-                        body = "<!DOCTYPE html>" + renderJsx(node);
-                    }
                 }
             } else {
-                ctx.throw("Route not found", HttpStatus.NOT_FOUND);
+                ctx.throw("Route not found: " + ctx.path, HttpStatus.NOT_FOUND);
             }
         } catch (e) {
-            console.error("\x1b[31m[Core]", e, "\x1b[0m");
+            console.error("\x1b[31m[Spring]", e, "\x1b[0m");
 
             if (Metadata.errorHandler) {
                 e.status = e.status || HttpStatus.INTERNAL_SERVER_ERROR;
@@ -179,7 +169,7 @@ export class Server {
     }
 
     /**
-     * Exports the core method of requests handler
+     * Exports the method of requests handler
      * Used to undertake requests for third-party http server
      */
     get dispatch() {
