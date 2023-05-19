@@ -192,9 +192,8 @@ export class Context {
         return new Response(body, this._response);
     }
 
-    // COMMON PART //////////////////////////////////////////////////
+    // COOKIES PART /////////////////////////////////////////////////
 
-    // Operate cookies. Usage: ctx.cookies.get(name)
     get cookies() {
         const reqHeaders = this._request.headers;
         const resHeaders = this._response.headers;
@@ -214,6 +213,8 @@ export class Context {
             }
         }
     }
+
+    // ERROR PART ///////////////////////////////////////////////////
 
     set error(e: HttpError | undefined) {
         this._error = e;
