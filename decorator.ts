@@ -29,14 +29,14 @@ export const Middleware = (priority: number): MethodDecorator => {
 }
 
 /**
- * Template decorator
+ * View decorator
  * @param path template file path
  * @returns
  */
-export const Template = (path: string): MethodDecorator => {
+export const View = (path: string): MethodDecorator => {
     return (target, name) => {
         Metadata.append(target.constructor, {
-            type: "method", name: "Template", value: path, fn: name
+            type: "method", name: "View", value: path, fn: name
         });
     };
 }
