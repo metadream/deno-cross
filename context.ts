@@ -2,32 +2,33 @@ import { getCookies, setCookie, deleteCookie } from "./deps.ts";
 import { CookieOptions, HttpError } from "./defs.ts";
 
 /**
- * Web Application Context
+ * Spring Application Context
  * extends native request and response
  */
 export class Context {
 
-    // Custom properties
+    // Allows custom properties
     // deno-lint-ignore no-explicit-any
     [index: string]: any;
 
-    #request: Request;
-    #response: { headers: Headers; status?: number; statusText?: string }
-        = { headers: new Headers() };
+    // Native request instance
+    private _request: Request;
+    // Native response instance
+    private _response: { headers: Headers; status?: number; statusText?: string } = { headers: new Headers() };
 
-    #url: URL;
-    #params: Record<string, string> = {};
-    #query: Record<string, string> = {};
-    #error?: HttpError;
+    private _url: URL;
+    private _params: Record<string, string> = {};
+    private _query: Record<string, string> = {};
+    private _error?: HttpError;
 
-    // Creates new context for each request
+    // Creates context instance for each request
     constructor(request: Request) {
-        this.#request = request;
-        this.#url = new URL(request.url);
+        this._request = request;
+        this._url = new URL(request.url);
 
         // Set query string parameters
-        for (const [k, v] of this.#url.searchParams) {
-            this.#query[k] = v;
+        for (const [k, v] of this._url.searchParams) {
+            this._query[k] = v;
         }
     }
 
@@ -35,146 +36,143 @@ export class Context {
 
     // Set request parameters on the route path
     set params(p: Record<string, string>) {
-        Object.assign(this.#params, p);
+        Object.assign(this._params, p);
     }
 
     // Get request parameters on the route path
     get params() {
-        return this.#params;
+        return this._params;
     }
 
     // Get querystring parameters
     get query() {
-        return this.#query;
+        return this._query;
     }
 
     // Get the full href of the request
     // ex. https://example.com:3000/users?page=1
     get url() {
-        return this.#request.url; // the same as this.#url.href
+        return this._url.href;
     }
 
     // ex. https://example.com:3000
     get origin() {
-        return this.#url.origin;
+        return this._url.origin;
     }
 
     // ex. https:
     get protocol() {
-        return this.#url.protocol;
+        return this._url.protocol;
     }
 
     // ex. example.com:3000
     get host() {
-        return this.#url.host;
+        return this._url.host;
     }
 
     // ex. example.com
     get hostname() {
-        return this.#url.hostname;
+        return this._url.hostname;
     }
 
     // ex. 3000
     get port() {
-        return this.#url.port;
+        return this._url.port;
     }
 
     // ex. /users
     get path() {
-        return this.#url.pathname;
+        return this._url.pathname;
     }
 
     // Get request method name
     get method() {
-        return this.#request.method;
+        return this._request.method;
     }
 
-    // Get request headers.
+    // Get request headers. 
     // Usage: ctx.headers.get(key)
     get headers() {
-        return this.#request.headers;
+        return this._request.headers;
     }
 
     // Get parsing functions for request body
     // Usage: await ctx.body.json()
     get body() {
-        const req = this.#request;
-        if (req.bodyUsed) {
+        if (this._request.bodyUsed) {
             this.throw("Request body already consumed");
         }
         return {
-            text: () => req.text(),
-            json: () => req.json(),
-            blob: () => req.blob(),
-            form: () => req.formData(),
-            buffer: () => req.arrayBuffer(),
+            text: () => this._request.text(),
+            json: () => this._request.json(),
+            blob: () => this._request.blob(),
+            form: () => this._request.formData(),
+            buffer: () => this._request.arrayBuffer(),
         }
     }
 
     // Get the native request instance
     get request() {
-        return this.#request;
+        return this._request;
     }
 
     // RESPONSE PART ////////////////////////////////////////////////
 
     set status(status: number) {
-        this.#response.status = status;
+        this._response.status = status;
     }
 
     get status() {
-        return this.#response.status || 0;
+        return this._response.status || 0;
     }
 
-    set statusText(statusText: string) {
-        this.#response.statusText = statusText;
+    set statusText(text: string) {
+        this._response.statusText = text;
     }
 
     get statusText() {
-        return this.#response.statusText || "";
+        return this._response.statusText || "";
     }
 
     // The following 5 methods are used to manipulate response headers
     // Usage: ctx.has("content-type")
     has(name: string) {
-        return this.#response.headers.has(name);
+        return this._response.headers.has(name);
     }
 
     get(name: string) {
-        return name ? this.#response.headers.get(name) : this.#response.headers;
+        return name ? this._response.headers.get(name) : this._response.headers;
     }
 
     set(name: string, value: string) {
-        this.#response.headers.set(name, value);
+        this._response.headers.set(name, value);
     }
 
     append(name: string, value: string) {
-        this.#response.headers.append(name, value);
+        this._response.headers.append(name, value);
     }
 
     delete(name: string) {
-        this.#response.headers.delete(name);
+        this._response.headers.delete(name);
     }
 
     // Permanent redirect codes: 301, 308 (default)
     // Temporary redirect codes: 302，303，307
     redirect(url: string, status: 301 | 302 | 303 | 307 | 308 = 308) {
-        this.#response.status = status;
+        this._response.status = status;
         this.set("Location", url);
     }
 
     // Build the response instance
     // BodyInit: Blob, BufferSource, FormData, ReadableStream, URLSearchParams, or USVString
     build(body: BodyInit | Response | undefined | null) {
-        if (body === undefined || body === null ||
-            this.status === 204 || this.status === 304) {
-            return new Response(null, this.#response);
+        if (body === undefined || body === null || this.status === 204 || this.status === 304) {
+            return new Response(null, this._response);
         }
 
         // It's a complete native response
         if (body instanceof Response) {
-            return body.status === 204 || body.status === 304
-                ? new Response(null, body) : body;
+            return body.status === 204 || body.status === 304 ? new Response(null, body) : body;
         }
 
         let contentType = null;
@@ -189,17 +187,17 @@ export class Context {
         }
 
         if (contentType && !this.has("content-type")) {
-            this.set("content-type", `${contentType}; charset=utf-8`);
+            this.set("content-type", contentType);
         }
-        return new Response(body, this.#response);
+        return new Response(body, this._response);
     }
 
     // COMMON PART //////////////////////////////////////////////////
 
     // Operate cookies. Usage: ctx.cookies.get(name)
     get cookies() {
-        const reqHeaders = this.#request.headers;
-        const resHeaders = this.#response.headers;
+        const reqHeaders = this._request.headers;
+        const resHeaders = this._response.headers;
 
         return {
             get(name?: string) {
@@ -218,11 +216,11 @@ export class Context {
     }
 
     set error(e: HttpError | undefined) {
-        this.#error = e;
+        this._error = e;
     }
 
     get error() {
-        return this.#error;
+        return this._error;
     }
 
     throw(message: string, status?: number) {
