@@ -10,25 +10,25 @@ export class Router {
     // In view of the fact that x/router does not implement the
     // parsing function of the request method, this framework
     // adds the grouping of routers according to request method
-    #radixGroup: Record<string, Radix> = {};
+    private radixGroup: Record<string, Radix> = {};
 
     // Since the route has other properties (such as template),
     // it is necessary to cache all routes for finding later
-    #routes: Route[] = [];
-    get routes() { return this.#routes; }
+    private _routes: Route[] = [];
+    get routes() { return this._routes; }
 
     /**
      * Add a route
      * @param route Route
      */
     add(route: Route) {
-        let radix = this.#radixGroup[route.method];
+        let radix = this.radixGroup[route.method];
         if (!radix) {
             radix = new Radix();
-            this.#radixGroup[route.method] = radix;
+            this.radixGroup[route.method] = radix;
         }
         radix.add(route.path, route.callback);
-        this.#routes.push(route);
+        this._routes.push(route);
     }
 
     /**
@@ -38,14 +38,14 @@ export class Router {
      * @returns Route
      */
     find(method: string, path: string): Route | undefined {
-        const radix = this.#radixGroup[method];
+        const radix = this.radixGroup[method];
         if (radix) {
             const [callback, params] = radix.find(path);
             if (callback) {
 
                 // Since the route has other properties (such as template),
                 // it is necessary to re-find the complete route according to the callback
-                const route = this.#routes.find(v => v.callback === callback);
+                const route = this._routes.find(v => v.callback === callback);
                 if (route) {
                     route.params = {};
                     for (const [k, v] of params) route.params[k] = v;
@@ -77,14 +77,14 @@ class Radix {
 
         let i = 0;
         for (; i < path.length && !isWildcard(path[i]); ++i);
-        n = n.#merge(path.slice(0, i));
+        n = n.merge(path.slice(0, i));
 
         let j = i;
         for (; i < path.length; ++i) {
             if (isWildcard(path[i])) {
                 if (j !== i) {
                     // insert static route
-                    n = n.#insert(path.slice(j, i));
+                    n = n.insert(path.slice(j, i));
                     j = i;
                 }
 
@@ -106,15 +106,15 @@ class Radix {
                 }
 
                 // insert wildcard route
-                n = n.#insert(path.slice(j, i));
+                n = n.insert(path.slice(j, i));
                 j = i;
             }
         }
 
         if (j === path.length) {
-            n.#merge("", handler);
+            n.merge("", handler);
         } else {
-            n.#insert(path.slice(j), handler);
+            n.insert(path.slice(j), handler);
         }
     }
 
@@ -197,7 +197,7 @@ class Radix {
         return [handler, params];
     }
 
-    #merge = (path: string, handler?: Callback): Radix => {
+    private merge = (path: string, handler?: Callback): Radix => {
         let n: Radix = this;
 
         if (n.path === "" && n.children.size === 0) {
@@ -256,12 +256,12 @@ class Radix {
         return n;
     };
 
-    #insert = (path: string, handler?: Callback): Radix => {
+    private insert = (path: string, handler?: Callback): Radix => {
         let n: Radix = this;
         let c = n.children.get(path[0]);
 
         if (c) {
-            n = c.#merge(path, handler);
+            n = c.merge(path, handler);
         } else {
             c = new Radix({ path, handler });
             n.children.set(path[0], c);

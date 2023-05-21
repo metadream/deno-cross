@@ -1,7 +1,7 @@
 import { ConnInfo, extname, resolve, serve } from "./deps.ts";
 import { Callback, HttpStatus, Method, Mime } from "./defs.ts";
 import { Context } from "./context.ts";
-import { Engine } from "./engine.ts";
+import { Template } from "./template.ts";
 import { Metadata } from "./metadata.ts";
 import { Router } from "./router.ts";
 
@@ -11,47 +11,56 @@ import { Router } from "./router.ts";
  */
 export class Server {
 
-    #router = new Router();
-    #engine = new Engine();
+    private router = new Router();
+    private template = new Template();
 
     // Create routes in shortcuts
     all(path: string, callback: Callback) {
-        return this.#shortcut(Method.ALL)(path, callback);
+        return this.shortcut(Method.ALL)(path, callback);
     }
 
     get(path: string, callback: Callback) {
-        return this.#shortcut(Method.GET)(path, callback);
+        return this.shortcut(Method.GET)(path, callback);
     }
 
     post(path: string, callback: Callback) {
-        return this.#shortcut(Method.POST)(path, callback);
+        return this.shortcut(Method.POST)(path, callback);
     }
 
     put(path: string, callback: Callback) {
-        return this.#shortcut(Method.PUT)(path, callback);
+        return this.shortcut(Method.PUT)(path, callback);
     }
 
     delete(path: string, callback: Callback) {
-        return this.#shortcut(Method.DELETE)(path, callback);
+        return this.shortcut(Method.DELETE)(path, callback);
     }
 
     patch(path: string, callback: Callback) {
-        return this.#shortcut(Method.PATCH)(path, callback);
+        return this.shortcut(Method.PATCH)(path, callback);
     }
 
     head(path: string, callback: Callback) {
-        return this.#shortcut(Method.HEAD)(path, callback);
+        return this.shortcut(Method.HEAD)(path, callback);
     }
 
     options(path: string, callback: Callback) {
-        return this.#shortcut(Method.OPTIONS)(path, callback);
+        return this.shortcut(Method.OPTIONS)(path, callback);
+    }
+
+    /**
+     * Exports the method of requests handler
+     * Used to undertake requests for third-party http server
+     */
+    get dispatch() {
+        this.compose();
+        return this.handleRequest.bind(this);
     }
 
     // Create static resources route
     serve(path: string) {
-        this.#router.add({
+        this.router.add({
             method: Method.GET, path,
-            callback: this.#handleStatic.bind(this)
+            callback: this.handleStatic.bind(this)
         });
         return this;
     }
@@ -59,7 +68,7 @@ export class Server {
     // Init engine options
     // deno-lint-ignore no-explicit-any
     engine(options: any) {
-        this.#engine.init(options);
+        this.template.init(options);
         return this;
     }
 
@@ -68,15 +77,15 @@ export class Server {
      * @param port default 3000
      */
     listen(port?: number) {
-        this.#compose();
+        this.compose();
 
-        if (this.#router.routes.length === 0) {
+        if (this.router.routes.length === 0) {
             console.error(`\x1b[31m[Spring] Error: No route found\x1b[0m`);
             console.log(`[Spring] Please make sure you have imported the decorator module`);
         } else {
             port = port || 3000;
-            serve(this.#handleRequest.bind(this), { port });
-            console.log(`\x1b[90m[Spring] ${this.#version()}\x1b[0m`);
+            serve(this.handleRequest.bind(this), { port });
+            console.log(`\x1b[90m[Spring] ${this.version()}\x1b[0m`);
             console.log(`\x1b[90m[Spring] Repository: https://github.com/metadream/deno-spring\x1b[0m`);
             console.log(`[Spring] Server is running at \x1b[4m\x1b[36mhttp://localhost:${port}\x1b[0m`);
         }
@@ -88,22 +97,22 @@ export class Server {
      * @param request
      * @returns
      */
-    async #handleRequest(request: Request, connInfo: ConnInfo): Promise<Response> {
+    private async handleRequest(request: Request, connInfo: ConnInfo): Promise<Response> {
         const time = Date.now();
         const ctx = new Context(request);
         ctx.remoteAddr = connInfo.remoteAddr;
-        ctx.view = this.#engine.view.bind(this.#engine);
-        ctx.render = this.#engine.render.bind(this.#engine);
+        ctx.view = this.template.view.bind(this.template);
+        ctx.render = this.template.render.bind(this.template);
         Object.assign(ctx, Metadata.plugins);
 
         let body = null;
         try {
-            const route = this.#router.find(ctx.method, ctx.path)
-                || this.#router.find(Method.ALL, ctx.path);
+            const route = this.router.find(ctx.method, ctx.path)
+                || this.router.find(Method.ALL, ctx.path);
 
             if (route) {
                 ctx.params = route.params || {};
-                await this.#callMiddlewares(ctx);
+                await this.callMiddlewares(ctx);
                 body = await route.callback(ctx);
                 if (route.template) {
                     body = await ctx.view(route.template, body);
@@ -133,7 +142,7 @@ export class Server {
      * @param ctx
      * @returns
      */
-    async #handleStatic(ctx: Context) {
+    private async handleStatic(ctx: Context) {
         // Removes the leading slash and converts relative path to absolute path
         let file = resolve(ctx.path.replace(/^\/+/, ""));
         try {
@@ -168,38 +177,29 @@ export class Server {
         }
     }
 
-    /**
-     * Exports the method of requests handler
-     * Used to undertake requests for third-party http server
-     */
-    get dispatch() {
-        this.#compose();
-        return this.#handleRequest.bind(this);
-    }
-
     // Create shortcut methods
-    #shortcut(method: string) {
+    private shortcut(method: string) {
         return (path: string, callback: Callback) => {
-            this.#router.add({ method, path, callback });
+            this.router.add({ method, path, callback });
             return this;
         }
     }
 
     // Call middlewares by priority
-    async #callMiddlewares(ctx: Context) {
+    private async callMiddlewares(ctx: Context) {
         for (const middleware of Metadata.middlewares) {
             await middleware.callback(ctx);
         }
     }
 
     // Compose all routes from metadata
-    #compose() {
+    private compose() {
         Metadata.compose();
-        Metadata.routes.forEach(route => this.#router.add(route));
+        Metadata.routes.forEach(route => this.router.add(route));
     }
 
     // Format versions
-    #version() {
+    private version() {
         const vers = JSON.stringify(Deno.version);
         return vers
             ? vers.replace(/(\"|{|})/g, "").replace(/(:|,)/g, "$1 ")

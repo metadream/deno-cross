@@ -14,7 +14,7 @@ export class Metadata {
 
     // To avoid creating instance repeatedly, use "Set" to automatically deduplicate.
     // deno-lint-ignore no-explicit-any
-    static #constructors: Set<any> = new Set();
+    private static constructors: Set<any> = new Set();
 
     /**
      * Append metadata to target constructor (called when the decorator is triggered)
@@ -23,7 +23,7 @@ export class Metadata {
      */
     // deno-lint-ignore no-explicit-any
     static append(constructor: any, decorator: Decorator) {
-        this.#constructors.add(constructor);
+        this.constructors.add(constructor);
 
         // There may be more than one class decorator on single class
         if (decorator.type === "class") {
@@ -49,7 +49,7 @@ export class Metadata {
      */
     static compose() {
         // Get metadata from each constructor
-        for (const c of this.#constructors) {
+        for (const c of this.constructors) {
             // New an instance
             const instance = new c();
 
@@ -123,7 +123,7 @@ export class Metadata {
     }
 
     static printMetadata() {
-        for (const c of this.#constructors) {
+        for (const c of this.constructors) {
             console.log(`---------------------- ${c.name}`);
             console.log("class:decorators:", Reflect.getMetadata("class:decorators", c));
             console.log("method:decorators:", Reflect.getMetadata("method:decorators", c));
