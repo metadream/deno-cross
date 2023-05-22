@@ -1,5 +1,5 @@
 import { Method } from "./defs.ts";
-import { Metadata } from "./metadata.ts";
+import { App } from "./app.ts";
 
 /**
  * Route decorator
@@ -9,7 +9,7 @@ import { Metadata } from "./metadata.ts";
  */
 const Request = (method: string) => (path: string): MethodDecorator => {
     return (target, name) => {
-        Metadata.append(target.constructor, {
+        App.append(target.constructor, {
             type: "method", name: method, value: path, fn: name
         });
     };
@@ -22,7 +22,7 @@ const Request = (method: string) => (path: string): MethodDecorator => {
  */
 export const Middleware = (priority: number): MethodDecorator => {
     return (target, name) => {
-        Metadata.append(target.constructor, {
+        App.append(target.constructor, {
             type: "method", name: "Middleware", value: priority, fn: name
         });
     };
@@ -35,7 +35,7 @@ export const Middleware = (priority: number): MethodDecorator => {
  */
 export const View = (path: string): MethodDecorator => {
     return (target, name) => {
-        Metadata.append(target.constructor, {
+        App.append(target.constructor, {
             type: "method", name: "View", value: path, fn: name
         });
     };
@@ -47,7 +47,7 @@ export const View = (path: string): MethodDecorator => {
  */
 export const ErrorHandler = (): MethodDecorator => {
     return (target, name) => {
-        Metadata.append(target.constructor, {
+        App.append(target.constructor, {
             type: "method", name: "ErrorHandler", fn: name
         });
     };
@@ -60,7 +60,7 @@ export const ErrorHandler = (): MethodDecorator => {
  */
 export const Controller = (prefix?: string): ClassDecorator => {
     return (constructor) => {
-        Metadata.append(constructor, {
+        App.append(constructor, {
             type: "class", name: "Controller", value: prefix
         });
     }
@@ -73,7 +73,7 @@ export const Controller = (prefix?: string): ClassDecorator => {
  */
 export const Plugin = (name: string): ClassDecorator => {
     return (constructor) => {
-        Metadata.append(constructor, {
+        App.append(constructor, {
             type: "class", name: "Plugin", value: name
         });
     }

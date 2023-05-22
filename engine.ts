@@ -1,4 +1,5 @@
 import { resolve } from "./deps.ts";
+import { Renderer, EngineOptions } from "./defs.ts";
 
 // Template syntax
 const syntax = {
@@ -21,30 +22,23 @@ const variable = {
     SPLIT2: /^$|,+/
 }
 
-interface Options {
-    root: string;
-    imports: Record<string, unknown>;
-}
-
-type Renderer = (data: unknown) => string
-
 /**
- * Tmplet: A compact, high-performance and full-featured template engine
+ * A compact, high-performance and full-featured template engine
  * Licensed under the MIT license.
  */
-export class Template {
+export class Engine {
 
     // Cache template file and compiled function
     private cache: Record<string, Renderer> = {};
 
     // Template engine options
-    private options: Options = { root: "", imports: {} }
+    private options: EngineOptions = { root: "", imports: {} }
 
     /**
      * Initialize custom options
      * @param {object} _options
      */
-    init(_options: Options) {
+    init(_options: EngineOptions) {
         Object.assign(this.options, _options);
     }
 
@@ -215,4 +209,5 @@ export class Template {
     private output(code: string): string {
         return "';" + code + "out+='";
     }
+
 }

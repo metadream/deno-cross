@@ -86,6 +86,8 @@ export const Mime: Record<string, string> = {
 
 // Route callback function in the controller
 export type Callback = (ctx: Context) => void;
+// Template engine compiled function
+export type Renderer = (data: unknown) => string
 
 // Decorator entity
 export type Decorator = {
@@ -108,6 +110,12 @@ export type Route = {
 export type Middleware = {
     priority: number;
     callback: Callback;
+}
+
+// Template engine options
+export type EngineOptions = {
+    root: string;
+    imports: Record<string, unknown>;
 }
 
 // Cookie options

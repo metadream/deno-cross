@@ -2,7 +2,7 @@
 import type { Route, Callback } from "./defs.ts";
 
 /**
- * Router for Adding and Finding routes
+ * Spring Router for Adding and Finding routes
  * based on radix tree.
  */
 export class Router {

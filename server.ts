@@ -1,8 +1,8 @@
 import { ConnInfo, extname, resolve, serve } from "./deps.ts";
-import { Callback, HttpStatus, Method, Mime } from "./defs.ts";
+import { Callback, EngineOptions, HttpStatus, Method, Mime } from "./defs.ts";
+import { App } from "./app.ts";
 import { Context } from "./context.ts";
-import { Template } from "./template.ts";
-import { Metadata } from "./metadata.ts";
+import { Engine } from "./engine.ts";
 import { Router } from "./router.ts";
 
 /**
@@ -12,7 +12,7 @@ import { Router } from "./router.ts";
 export class Server {
 
     private router = new Router();
-    private template = new Template();
+    private engine = new Engine();
 
     // Create routes in shortcuts
     all(path: string, callback: Callback) {
@@ -66,9 +66,8 @@ export class Server {
     }
 
     // Init engine options
-    // deno-lint-ignore no-explicit-any
-    engine(options: any) {
-        this.template.init(options);
+    init(options: EngineOptions) {
+        this.engine.init(options);
         return this;
     }
 
@@ -101,9 +100,9 @@ export class Server {
         const time = Date.now();
         const ctx = new Context(request);
         ctx.remoteAddr = connInfo.remoteAddr;
-        ctx.view = this.template.view.bind(this.template);
-        ctx.render = this.template.render.bind(this.template);
-        Object.assign(ctx, Metadata.plugins);
+        ctx.view = this.engine.view.bind(this.engine);
+        ctx.render = this.engine.render.bind(this.engine);
+        Object.assign(ctx, App.plugins);
 
         let body = null;
         try {
@@ -123,11 +122,11 @@ export class Server {
         } catch (e) {
             console.error("\x1b[31m[Spring]", e, "\x1b[0m");
 
-            if (Metadata.errorHandler) {
+            if (App.errorHandler) {
                 e.status = e.status || HttpStatus.INTERNAL_SERVER_ERROR;
                 ctx.status = e.status || HttpStatus.INTERNAL_SERVER_ERROR;
                 ctx.error = e;
-                body = await Metadata.errorHandler(ctx);
+                body = await App.errorHandler(ctx);
             } else {
                 ctx.status = e.status || HttpStatus.INTERNAL_SERVER_ERROR;
                 body = e.message || "Internal Server Error";
@@ -187,15 +186,15 @@ export class Server {
 
     // Call middlewares by priority
     private async callMiddlewares(ctx: Context) {
-        for (const middleware of Metadata.middlewares) {
+        for (const middleware of App.middlewares) {
             await middleware.callback(ctx);
         }
     }
 
-    // Compose all routes from metadata
+    // Compose all routes from application cache
     private compose() {
-        Metadata.compose();
-        Metadata.routes.forEach(route => this.router.add(route));
+        App.compose();
+        App.routes.forEach(route => this.router.add(route));
     }
 
     // Format versions

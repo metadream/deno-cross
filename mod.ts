@@ -1,4 +1,4 @@
 import { Server } from "./server.ts";
 export { Context } from "./context.ts";
-export * from "./decorator.ts";
+export * from "./anno.ts";
 export default new Server();

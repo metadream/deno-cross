@@ -2,11 +2,12 @@ import { Callback, Decorator, HttpError, Middleware, Route } from "./defs.ts";
 import { join, Reflect } from "./deps.ts";
 
 /**
- * Global Reflect Metadata Cache for Decorator Constructors
+ * Spring Runtime Cache
+ * Caching instances of decorator constructors
  */
-export class Metadata {
+export class App {
 
-    // All the global metadata at runtime
+    // All the global instances at runtime
     static plugins: Record<string, unknown> = {};
     static middlewares: Middleware[] = [];
     static routes: Route[] = [];
@@ -17,7 +18,7 @@ export class Metadata {
     private static constructors: Set<any> = new Set();
 
     /**
-     * Append metadata to target constructor (called when the decorator is triggered)
+     * Append target constructor (called when the decorator is triggered)
      * @param constructor
      * @param decorator
      */
@@ -48,7 +49,7 @@ export class Metadata {
      * Resolve all decorators
      */
     static compose() {
-        // Get metadata from each constructor
+        // Get and create instances from each constructor
         for (const c of this.constructors) {
             // New an instance
             const instance = new c();
@@ -120,21 +121,6 @@ export class Metadata {
 
         // Sort middlewares by priority
         this.middlewares.sort((a, b) => a.priority - b.priority);
-    }
-
-    static printMetadata() {
-        for (const c of this.constructors) {
-            console.log(`---------------------- ${c.name}`);
-            console.log("class:decorators:", Reflect.getMetadata("class:decorators", c));
-            console.log("method:decorators:", Reflect.getMetadata("method:decorators", c));
-        }
-    }
-
-    static printResult() {
-        console.log("plugins:", Metadata.plugins)
-        console.log("middlewares:", Metadata.middlewares)
-        console.log("routes:", Metadata.routes)
-        console.log("errorHandler:", Metadata.errorHandler)
     }
 
 }
