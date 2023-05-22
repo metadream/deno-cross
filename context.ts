@@ -183,7 +183,7 @@ export class Context {
         }
 
         if (contentType && !this.has("content-type")) {
-            this.set("content-type", contentType);
+            this.set("content-type", `${contentType}; charset=utf-8`);
         }
         return new Response(body, this._response);
     }
