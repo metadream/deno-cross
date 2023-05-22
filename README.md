@@ -25,7 +25,7 @@ decorators at startup, it is almost the same in runtime.
 ```ts
 // main.ts
 import app from "https://deno.land/x/spring/mod.ts";
-import "./controllers/MyController.ts"; // Do not forget import the controllers
+import "./controllers/MyController.ts"; // DO NOT forget import the controllers
 
 app.listen();
 ```
@@ -33,7 +33,7 @@ app.listen();
 ### 1. Controllers
 
 ```ts
-// controller.ts
+// my-controller.ts
 import { Context, Controller, Get } from "https://deno.land/x/spring/mod.ts";
 
 @Controller("/prefix")
@@ -51,7 +51,7 @@ You can add middleware decorator on any class method, including controllers. The
 role of the middleware parameter is to set the execution priority.
 
 ```ts
-// middleware.ts
+// my-middleware.ts
 import { Context, Middleware } from "https://deno.land/x/spring/mod.ts";
 
 export class MyMiddleware {
@@ -72,7 +72,7 @@ Plugin decorators can only be added to classes, and the parameter is the name
 bound to the context.
 
 ```ts
-// plugin.ts
+// my-plugin.ts
 import { Plugin } from "https://deno.land/x/spring/mod.ts";
 
 @Plugin("redis")
@@ -92,18 +92,17 @@ export class Redis {
 Then you can use redis object as singleton instance in any controllers with
 `ctx.redis`.
 
-### 4. Templates
+### 4. View
 
-Template decorators are used to decorate controller methods, and its parameter
-is the template file path. After adding it the built-in template engine will be
-used for rendering automatically. The built-in engine is based on
-[tmplet](https://github.com/metadream/tmplet), You can go to the repo to see the
-template syntax.
+View decorators are used to decorate controller methods, and its parameter is
+the template file path. After adding it the built-in template engine will be
+used for rendering automatically. The built-in engine syntax see
+[SYNTAX.md](/SYNTAX.md)
 
 ```ts
 // main.ts
-app.engine({ // Engine options, not necessary
-  root: "", // The root of template files
+app.engine({  // Engine options, not necessary
+  root: "",   // The root of template files
   imports: {} // Global imports for template
 })
 .listen();
@@ -114,7 +113,7 @@ import { Context, Controller, Get, Template } from "https://deno.land/x/spring/m
 @Controller("/prefix")
 export class MyController {
   @Get("/:user")
-  @Template("index.html") // or @Template("root/path/index.html") if engine not initialized
+  @View("index.html") // or @View("root/path/index.html") if engine not initialized
   getUser(ctx: Context) {
     return { name: ctx.params.user };
   }
@@ -180,7 +179,7 @@ refer to: https://github.com/zhmushan/router.
 | @Patch        | MethodDecorator | string     | Route path                    |
 | @Head         | MethodDecorator | string     | Route path                    |
 | @Options      | MethodDecorator | string     | Route path                    |
-| @Template     | MethodDecorator | string     | Template file path            |
+| @View         | MethodDecorator | string     | Template file path            |
 | @Middleware   | MethodDecorator | number     | Middleware execution priority |
 | @ErrorHandler | MethodDecorator | undefined  |                               |
 
@@ -201,7 +200,8 @@ contains properties and methods related to requests and responses.
 - `ctx.port` ex. 3000
 - `ctx.path` ex. /users
 - `ctx.method` Standard http request methods
-- `ctx.headers` Refer to https://deno.com/deploy/docs/runtime-headers
+- `ctx.has`, `ctx.get` Shortcuts for obtain reqeust headers. Refer to
+  https://deno.com/deploy/docs/runtime-headers
 - `ctx.cookies` Including one method to get request cookie:
   `ctx.cookies.get(name)`
 - `ctx.body` Including five promised methods to parse request body: `text()`,
@@ -219,17 +219,15 @@ contains properties and methods related to requests and responses.
 
 #### Response Methods
 
-- `ctx.has(name)` The following 5 methods are used to manipulate response
+- `ctx.set(name, value)` The following 3 methods are used to manipulate response
   headers
-- `ctx.get(name)`
-- `ctx.set(name, value)`
 - `ctx.append(name, value)`
 - `ctx.delete(name)`
 - `ctx.redirect(url[, status])` Redirect url with default status code 308.
 
 #### Others
 
-- `ctx.view(tmplFile, data)` If the controller method does not add a `@Template`
+- `ctx.view(tmplFile, data)` If the controller method does not add a `@View`
   decorator, you can call this method to return the rendered text content.
 - `ctx.render(tmplText, data)` Render template text, usually not needed.
 - `ctx.error`
