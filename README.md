@@ -101,7 +101,7 @@ used for rendering automatically. The built-in engine syntax see
 
 ```ts
 // main.ts
-app.engine({  // Engine options, not necessary
+app.init({  // Engine options, not necessary
   root: "",   // The root of template files
   imports: {} // Global imports for template
 })
