@@ -7,7 +7,7 @@ import { CookieOptions, HttpError } from "./defs.ts";
  */
 export class Context {
 
-    // Allows custom properties
+    // Allows add custom properties
     // deno-lint-ignore no-explicit-any
     [index: string]: any;
 
@@ -90,10 +90,14 @@ export class Context {
         return this._request.method;
     }
 
-    // Get request headers. 
-    // Usage: ctx.headers.get(key)
-    get headers() {
-        return this._request.headers;
+    // The following 2 methods are used to manipulate request headers
+    // Usage: ctx.has(key)
+    has(name: string) {
+        return this._request.headers.has(name);
+    }
+
+    get(name: string) {
+        return name ? this._request.headers.get(name) : this._request.headers;
     }
 
     // Get parsing functions for request body
@@ -134,16 +138,8 @@ export class Context {
         return this._response.statusText || "";
     }
 
-    // The following 5 methods are used to manipulate response headers
-    // Usage: ctx.has("content-type")
-    has(name: string) {
-        return this._response.headers.has(name);
-    }
-
-    get(name: string) {
-        return name ? this._response.headers.get(name) : this._response.headers;
-    }
-
+    // The following 3 methods are used to manipulate response headers
+    // Usage: ctx.set("content-type", "")
     set(name: string, value: string) {
         this._response.headers.set(name, value);
     }
