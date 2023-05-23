@@ -160,7 +160,7 @@ export class Server {
             // Handling 304 status with negotiation cache
             // if-modified-since and Last-Modified
             const lastModified = stat.mtime.toUTCString();
-            if (ctx.headers.get("if-modified-since") === lastModified) {
+            if (ctx.get("if-modified-since") === lastModified) {
                 ctx.status = 304;
                 ctx.statusText = "Not Modified";
             } else {

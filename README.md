@@ -108,7 +108,7 @@ app.init({  // Engine options, not necessary
 .listen();
 
 // controller.ts
-import { Context, Controller, Get, Template } from "https://deno.land/x/spring/mod.ts";
+import { Context, Controller, Get, View } from "https://deno.land/x/spring/mod.ts";
 
 @Controller("/prefix")
 export class MyController {

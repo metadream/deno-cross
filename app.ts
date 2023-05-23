@@ -96,7 +96,7 @@ export class App {
                 }
 
                 // Ignore template decorator (but will be used later)
-                if (decorator.name === "Template") {
+                if (decorator.name === "View") {
                     continue;
                 }
 
@@ -106,7 +106,7 @@ export class App {
                 }
 
                 // Find template decorator in the same method scope
-                const tmpl: Decorator | undefined = decorators.find(v => v.name === "Template");
+                const tmpl: Decorator | undefined = decorators.find(v => v.name === "View");
                 const template = tmpl ? tmpl.value as string : undefined;
                 const prefix = controller.value as string || "";
                 const path = decorator.value as string || "";
