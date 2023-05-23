@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import { resolve } from "./deps.ts";
 import { Renderer, EngineOptions } from "./defs.ts";
 
@@ -121,12 +122,10 @@ export class Engine {
      */
     private async include(file: string) {
         let tmpl = await Deno.readTextFile(resolve(this.options.root, file));
-        // deno-lint-ignore no-explicit-any
-        const replacer: any = async (_: string, _file: string) => {
-            return await Deno.readTextFile(resolve(this.options.root, _file));
-        }
         while (syntax.PARTIAL.test(tmpl)) {
-            tmpl = tmpl.replace(syntax.PARTIAL, replacer);
+            tmpl = await this.replaceAsync(tmpl, syntax.PARTIAL, async (_: string, _file: string) => {
+                return await Deno.readTextFile(resolve(this.options.root, _file));
+            })
         }
         return tmpl;
     }
@@ -208,6 +207,17 @@ export class Engine {
 
     private output(code: string): string {
         return "';" + code + "out+='";
+    }
+
+    private async replaceAsync(str: string, regex: RegExp, asyncFn: any) {
+        const promises: any = [];
+        const replacer: any = (match: any, ...args: any) => {
+            const promise = asyncFn(match, ...args);
+            promises.push(promise);
+        }
+        str.replace(regex, replacer);
+        const data = await Promise.all(promises);
+        return str.replace(regex, () => data.shift());
     }
 
 }
