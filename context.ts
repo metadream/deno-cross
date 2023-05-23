@@ -97,7 +97,7 @@ export class Context {
     }
 
     get(name: string) {
-        return name ? this._request.headers.get(name) : this._request.headers;
+        return this._request.headers.get(name);
     }
 
     // Get parsing functions for request body
