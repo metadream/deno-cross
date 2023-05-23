@@ -182,7 +182,7 @@ export class Context {
             body = JSON.stringify(body);
         }
 
-        if (contentType && !this.has("content-type")) {
+        if (contentType && !this._response.headers.has("content-type")) {
             this.set("content-type", `${contentType}; charset=utf-8`);
         }
         return new Response(body, this._response);
