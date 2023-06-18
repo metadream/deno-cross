@@ -1,5 +1,5 @@
 import { Callback, Decorator, HttpError, Middleware, Route } from "./defs.ts";
-import { join, Reflect } from "./deps.ts";
+import { Reflect } from "./deps.ts";
 
 /**
  * Spring Runtime Cache
@@ -113,7 +113,7 @@ export class App {
 
                 this.routes.push({
                     method: decorator.name,
-                    path: join("/", prefix, path),
+                    path: ("/" + prefix + path).replace(/[\/]+/g, "/"),
                     callback, template
                 });
             }
