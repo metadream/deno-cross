@@ -111,6 +111,7 @@ export class Server {
 
             if (route) {
                 ctx.params = route.params || {};
+                ctx.template = route.template;
                 await this.callMiddlewares(ctx);
                 body = await route.callback(ctx);
                 if (route.template) {
