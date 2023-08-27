@@ -103,6 +103,7 @@ export type Route = {
     path: string;
     callback: Callback;
     template?: string;
+    pattern?: RegExp;
     params?: Record<string, string>;
 }
 

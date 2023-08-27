@@ -78,16 +78,11 @@ export class Server {
     listen(port?: number) {
         this.compose();
 
-        if (this.router.routes.length === 0) {
-            console.error(`\x1b[31m[Spring] Error: No route found\x1b[0m`);
-            console.log(`[Spring] Please make sure you have imported the decorator module`);
-        } else {
-            port = port || 3000;
-            serve(this.handleRequest.bind(this), { port });
-            console.log(`\x1b[90m[Spring] ${this.version()}\x1b[0m`);
-            console.log(`\x1b[90m[Spring] Repository: https://github.com/metadream/deno-spring\x1b[0m`);
-            console.log(`[Spring] Server is running at \x1b[4m\x1b[36mhttp://localhost:${port}\x1b[0m`);
-        }
+        port = port || 3000;
+        serve(this.handleRequest.bind(this), { port });
+        console.log(`\x1b[90m[Spring] ${this.version()}\x1b[0m`);
+        console.log(`\x1b[90m[Spring] Repository: https://github.com/metadream/deno-spring\x1b[0m`);
+        console.log(`[Spring] Server is running at \x1b[4m\x1b[36mhttp://localhost:${port}\x1b[0m`);
         return this;
     }
 
