@@ -1,5 +1,5 @@
-import { Method } from "./defs.ts";
-import { App } from "./app.ts";
+import { Method } from "./types.ts";
+import { Global } from "./global.ts";
 
 /**
  * Route decorator
@@ -9,11 +9,14 @@ import { App } from "./app.ts";
  */
 const Request = (method: string) => (path: string): MethodDecorator => {
     return (target, name) => {
-        App.append(target.constructor, {
-            type: "method", name: method, value: path, fn: name
+        Global.append(target.constructor, {
+            type: "method",
+            name: method,
+            value: path,
+            fn: name,
         });
     };
-}
+};
 
 /**
  * Middleware decorator
@@ -22,11 +25,14 @@ const Request = (method: string) => (path: string): MethodDecorator => {
  */
 export const Middleware = (priority: number): MethodDecorator => {
     return (target, name) => {
-        App.append(target.constructor, {
-            type: "method", name: "Middleware", value: priority, fn: name
+        Global.append(target.constructor, {
+            type: "method",
+            name: "Middleware",
+            value: priority,
+            fn: name,
         });
     };
-}
+};
 
 /**
  * View decorator
@@ -35,11 +41,14 @@ export const Middleware = (priority: number): MethodDecorator => {
  */
 export const View = (path: string): MethodDecorator => {
     return (target, name) => {
-        App.append(target.constructor, {
-            type: "method", name: "View", value: path, fn: name
+        Global.append(target.constructor, {
+            type: "method",
+            name: "View",
+            value: path,
+            fn: name,
         });
     };
-}
+};
 
 /**
  * ErrorHandler decorator
@@ -47,11 +56,13 @@ export const View = (path: string): MethodDecorator => {
  */
 export const ErrorHandler = (): MethodDecorator => {
     return (target, name) => {
-        App.append(target.constructor, {
-            type: "method", name: "ErrorHandler", fn: name
+        Global.append(target.constructor, {
+            type: "method",
+            name: "ErrorHandler",
+            fn: name,
         });
     };
-}
+};
 
 /**
  * Controller decorator
@@ -60,11 +71,13 @@ export const ErrorHandler = (): MethodDecorator => {
  */
 export const Controller = (prefix?: string): ClassDecorator => {
     return (constructor) => {
-        App.append(constructor, {
-            type: "class", name: "Controller", value: prefix
+        Global.append(constructor, {
+            type: "class",
+            name: "Controller",
+            value: prefix,
         });
-    }
-}
+    };
+};
 
 /**
  * Plugin decorator
@@ -73,17 +86,18 @@ export const Controller = (prefix?: string): ClassDecorator => {
  */
 export const Plugin = (name: string): ClassDecorator => {
     return (constructor) => {
-        App.append(constructor, {
-            type: "class", name: "Plugin", value: name
+        Global.append(constructor, {
+            type: "class",
+            name: "Plugin",
+            value: name,
         });
-    }
-}
+    };
+};
 
 /**
  * Route decorators
  * @returns
  */
-export const All = Request(Method.ALL);
 export const Get = Request(Method.GET);
 export const Post = Request(Method.POST);
 export const Put = Request(Method.PUT);

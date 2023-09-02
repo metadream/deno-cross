@@ -1,169 +1,143 @@
-import { getCookies, setCookie, deleteCookie } from "./deps.ts";
-import { CookieOptions, HttpError } from "./defs.ts";
+import { Route } from "./types.ts";
+import { Cookie, deleteCookie, getCookies, setCookie } from "./deps.ts";
+import { Engine } from "./engine.ts";
 
 /**
  * Spring Application Context
  * extends native request and response
  */
 export class Context {
-
     // Allows add custom properties
-    // deno-lint-ignore no-explicit-any
-    [index: string]: any;
+    [index: string]: unknown;
 
-    // Native request instance
-    private _request: Request;
-    // Native response instance
-    private _response: { headers: Headers; status?: number; statusText?: string } = { headers: new Headers() };
+    json: () => Promise<unknown>;
+    text: () => Promise<string>;
+    blob: () => Promise<Blob>;
+    form: () => Promise<FormData>;
+    buffer: () => Promise<ArrayBuffer>;
 
-    private _url: URL;
-    private _params: Record<string, string> = {};
-    private _query: Record<string, string> = {};
-    private _error?: HttpError;
+    addr: Deno.NetAddr;
+    method: string;
+    url: string;
+    origin: string;
+    protocol: string;
+    host: string;
+    hostname: string;
+    port: string;
+    path: string;
+
+    query: Record<string, string> = {};
+    params: Record<string, string> = {};
+    render: (tmpl: string, data: unknown) => string;
+    view: (file: string, data: unknown) => Promise<string>;
+    template?: string;
+
+    private req: Request;
+    private res: {
+        headers: Headers;
+        status?: number;
+        statusText?: string;
+    };
+
+    // REQUEST ////////////////////////////////////////////////////////////////
 
     // Creates context instance for each request
-    constructor(request: Request) {
-        this._request = request;
-        this._url = new URL(request.url);
+    constructor(req: Request, info: Deno.ServeHandlerInfo, engine: Engine) {
+        this.req = req;
+        this.res = { headers: new Headers() };
+        this.render = engine.render.bind(engine);
+        this.view = engine.view.bind(engine);
+
+        this.addr = info.remoteAddr;
+        this.method = req.method;
+        this.json = () => req.json();
+        this.text = req.text;
+        this.blob = req.blob;
+        this.form = req.formData;
+        this.buffer = req.arrayBuffer;
+
+        const url = new URL(req.url);
+        this.url = url.href; // ex. https=//example.com=3000/users?page=1
+        this.origin = url.origin; //ex. https=//example.com=3000
+        this.protocol = url.protocol; //ex. https=
+        this.host = url.host; // ex. example.com=3000
+        this.hostname = url.hostname; //ex. example.com
+        this.port = url.port; // ex. 3000
+        this.path = url.pathname; // ex. /users
 
         // Set query string parameters
-        for (const [k, v] of this._url.searchParams) {
-            this._query[k] = v;
+        for (const [k, v] of url.searchParams) { // ex. ?page=1
+            this.query[k] = v;
         }
     }
 
-    // REQUEST PART /////////////////////////////////////////////////
-
-    // Set request parameters on the route path
-    set params(p: Record<string, string>) {
-        Object.assign(this._params, p);
+    set route(route: Route) {
+        this.params = route.params || {};
+        this.template = route.template;
     }
 
-    // Get request parameters on the route path
-    get params() {
-        return this._params;
-    }
-
-    // Get querystring parameters
-    get query() {
-        return this._query;
-    }
-
-    // Get the full href of the request
-    // ex. https://example.com:3000/users?page=1
-    get url() {
-        return this._url.href;
-    }
-
-    // ex. https://example.com:3000
-    get origin() {
-        return this._url.origin;
-    }
-
-    // ex. https:
-    get protocol() {
-        return this._url.protocol;
-    }
-
-    // ex. example.com:3000
-    get host() {
-        return this._url.host;
-    }
-
-    // ex. example.com
-    get hostname() {
-        return this._url.hostname;
-    }
-
-    // ex. 3000
-    get port() {
-        return this._url.port;
-    }
-
-    // ex. /users
-    get path() {
-        return this._url.pathname;
-    }
-
-    // Get request method name
-    get method() {
-        return this._request.method;
-    }
-
-    // The following 2 methods are used to manipulate request headers
-    // Usage: ctx.has(key)
     has(name: string) {
-        return this._request.headers.has(name);
+        return this.req.headers.has(name);
     }
 
     get(name: string) {
-        return this._request.headers.get(name);
+        return this.req.headers.get(name);
     }
 
-    // Get parsing functions for request body
-    // Usage: await ctx.body.json()
-    get body() {
-        if (this._request.bodyUsed) {
-            this.throw("Request body already consumed");
-        }
+    set(name: string, value: string) {
+        this.res.headers.set(name, value);
+    }
+
+    get cookies() {
+        const reqHeaders = this.req.headers;
+        const resHeaders = this.res.headers;
+
         return {
-            text: () => this._request.text(),
-            json: () => this._request.json(),
-            blob: () => this._request.blob(),
-            form: () => this._request.formData(),
-            buffer: () => this._request.arrayBuffer(),
-        }
+            get(name?: string) {
+                const cookies = getCookies(reqHeaders);
+                return name ? cookies[name] : cookies;
+            },
+            set(name: string, value: string, options?: Cookie) {
+                const cookie = { name, value };
+                Object.assign(cookie, options);
+                setCookie(resHeaders, cookie);
+            },
+            delete(name: string, attributes?: { path?: string; domain?: string }) {
+                deleteCookie(resHeaders, name, attributes);
+            },
+        };
     }
 
-    // Get the native request instance
-    get request() {
-        return this._request;
-    }
-
-    // RESPONSE PART ////////////////////////////////////////////////
+    // RESPONSE ///////////////////////////////////////////////////////////////
 
     set status(status: number) {
-        this._response.status = status;
+        this.res.status = status;
     }
 
     get status() {
-        return this._response.status || 0;
+        return this.res.status || 0;
     }
 
     set statusText(text: string) {
-        this._response.statusText = text;
+        this.res.statusText = text;
     }
 
     get statusText() {
-        return this._response.statusText || "";
-    }
-
-    // The following 3 methods are used to manipulate response headers
-    // Usage: ctx.set("content-type", "")
-    set(name: string, value: string) {
-        this._response.headers.set(name, value);
-    }
-
-    append(name: string, value: string) {
-        this._response.headers.append(name, value);
-    }
-
-    delete(name: string) {
-        this._response.headers.delete(name);
+        return this.res.statusText || "";
     }
 
     // Permanent redirect codes: 301, 308 (default)
     // Temporary redirect codes: 302，303，307
     redirect(url: string, status: 301 | 302 | 303 | 307 | 308 = 308) {
-        this._response.status = status;
-        this.set("Location", url);
+        this.res.status = status;
+        this.res.headers.set("Location", url);
     }
 
     // Build the response instance
     // BodyInit: Blob, BufferSource, FormData, ReadableStream, URLSearchParams, or USVString
-    build(body: BodyInit | Response | undefined | null) {
+    respond(body: BodyInit | Response | null | undefined) {
         if (body === undefined || body === null || this.status === 204 || this.status === 304) {
-            return new Response(null, this._response);
+            return new Response(null, this.res);
         }
 
         // It's a complete native response
@@ -174,54 +148,18 @@ export class Context {
         let contentType = null;
         if (typeof body === "string") {
             contentType = /^\s*</.test(body) ? "text/html" : "text/plain";
-
-        } else if (!(body instanceof Blob) && !(body instanceof Uint8Array)
-            && !(body instanceof FormData) && !(body instanceof ReadableStream)
-            && !(body instanceof URLSearchParams)) {
+        } else if (
+            !(body instanceof Blob) && !(body instanceof Uint8Array) &&
+            !(body instanceof FormData) && !(body instanceof ReadableStream) &&
+            !(body instanceof URLSearchParams)
+        ) {
             contentType = "application/json";
             body = JSON.stringify(body);
         }
 
-        if (contentType && !this._response.headers.has("content-type")) {
-            this.set("content-type", `${contentType}; charset=utf-8`);
+        if (contentType && !this.res.headers.has("content-type")) {
+            this.res.headers.set("content-type", `${contentType}; charset=utf-8`);
         }
-        return new Response(body, this._response);
+        return new Response(body, this.res);
     }
-
-    // COOKIES PART /////////////////////////////////////////////////
-
-    get cookies() {
-        const reqHeaders = this._request.headers;
-        const resHeaders = this._response.headers;
-
-        return {
-            get(name?: string) {
-                const cookies = getCookies(reqHeaders);
-                return name ? cookies[name] : cookies;
-            },
-            set(name: string, value: string, options?: CookieOptions) {
-                const cookie = { name, value };
-                Object.assign(cookie, options);
-                setCookie(resHeaders, cookie);
-            },
-            delete(name: string, attributes?: { path?: string; domain?: string }) {
-                deleteCookie(resHeaders, name, attributes);
-            }
-        }
-    }
-
-    // ERROR PART ///////////////////////////////////////////////////
-
-    set error(e: HttpError | undefined) {
-        this._error = e;
-    }
-
-    get error() {
-        return this._error;
-    }
-
-    throw(message: string, status?: number) {
-        throw new HttpError(message, status);
-    }
-
 }

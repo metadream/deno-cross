@@ -1,4 +1,4 @@
-import { Route } from "./defs.ts";
+import { Route } from "./types.ts";
 
 /**
  * Router
@@ -9,7 +9,6 @@ import { Route } from "./defs.ts";
  * @example /*
  */
 export class Router {
-
     private SORT_RULE = ["", "*", ":"];
     private routes: Route[] = [];
     private sorted = false;
@@ -43,7 +42,8 @@ export class Router {
 
             const matches = route.pattern.exec(url);
             if (matches) {
-                const g = matches.groups; route.params = {};
+                const g = matches.groups;
+                route.params = {};
                 if (g) for (const k in g) route.params[k] = g[k];
                 return route;
             }
@@ -61,12 +61,12 @@ export class Router {
                 const bChar = b.path.charAt(i);
                 if (aChar == bChar) continue;
 
-                const aIndex = this.SORT_RULE.findIndex(v => v == aChar);
-                const bIndex = this.SORT_RULE.findIndex(v => v == bChar);
+                const aIndex = this.SORT_RULE.findIndex((v) => v == aChar);
+                const bIndex = this.SORT_RULE.findIndex((v) => v == bChar);
                 return aIndex - bIndex;
             }
             return 0;
-        })
+        });
     }
 
     /**
@@ -78,8 +78,8 @@ export class Router {
         return pattern instanceof RegExp ? pattern : new RegExp(
             "^" + pattern
                 .replace(/\/\*($|\/)/g, "/(?<wildcard>.*)$1")
-                .replace(/:(\w+)(\(\S+\))?/g, (_, k, r) => `(?<${k}>${r ? r : "([^/]+?)"})`)
-            + "$");
+                .replace(/:(\w+)(\(\S+\))?/g, (_, k, r) => `(?<${k}>${r ? r : "([^/]+?)"})`) +
+                "$",
+        );
     }
-
 }

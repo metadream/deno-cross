@@ -1,145 +1,89 @@
-import { ConnInfo, extname, resolve, serve } from "./deps.ts";
-import { Callback, EngineOptions, HttpStatus, Method, Mime } from "./defs.ts";
-import { App } from "./app.ts";
+import { extname, resolve } from "./deps.ts";
+import { HttpError, HttpStatus, Method, Mime, RouteHandler, ServerOptions } from "./types.ts";
 import { Context } from "./context.ts";
 import { Engine } from "./engine.ts";
 import { Router } from "./router.ts";
+import { Global } from "./global.ts";
 
 /**
  * Web Application Server
  * to handle requests and static resources
  */
 export class Server {
-
     private router = new Router();
     private engine = new Engine();
 
-    // Create routes in shortcuts
-    all(path: string, callback: Callback) {
-        return this.shortcut(Method.ALL)(path, callback);
+    private svrOpt: ServerOptions = {
+        port: 3000,
+        hostname: "0.0.0.0",
+        onListen: this.onListen.bind(this),
+        onError: this.onError.bind(this),
+    };
+
+    boot(options?: ServerOptions): Deno.Server {
+        this.init(options);
+        return Deno.serve(this.svrOpt, this.handleRequest.bind(this));
     }
 
-    get(path: string, callback: Callback) {
-        return this.shortcut(Method.GET)(path, callback);
-    }
+    private init(options?: ServerOptions) {
+        Object.assign(this.svrOpt, options);
 
-    post(path: string, callback: Callback) {
-        return this.shortcut(Method.POST)(path, callback);
-    }
-
-    put(path: string, callback: Callback) {
-        return this.shortcut(Method.PUT)(path, callback);
-    }
-
-    delete(path: string, callback: Callback) {
-        return this.shortcut(Method.DELETE)(path, callback);
-    }
-
-    patch(path: string, callback: Callback) {
-        return this.shortcut(Method.PATCH)(path, callback);
-    }
-
-    head(path: string, callback: Callback) {
-        return this.shortcut(Method.HEAD)(path, callback);
-    }
-
-    options(path: string, callback: Callback) {
-        return this.shortcut(Method.OPTIONS)(path, callback);
-    }
-
-    /**
-     * Exports the method of requests handler
-     * Used to undertake requests for third-party http server
-     */
-    get dispatch() {
-        this.compose();
-        return this.handleRequest.bind(this);
-    }
-
-    // Create static resources route
-    serve(path: string) {
-        this.router.add({
-            method: Method.GET, path,
-            callback: this.handleStatic.bind(this)
+        // Init template engine
+        this.engine.init({
+            viewRoot: this.svrOpt.viewRoot || "",
+            imports: this.svrOpt.imports || {},
         });
-        return this;
+
+        // Init static resources
+        if (this.svrOpt.assets) {
+            for (const path of this.svrOpt.assets) {
+                this.router.add({ method: Method.GET, path, handler: this.handleResource });
+            }
+        }
+
+        // Resolve decorators and routes
+        Global.compose();
+        Global.routes.forEach((route) => this.router.add(route));
     }
 
-    // Init engine options
-    init(options: EngineOptions) {
-        this.engine.init(options);
-        return this;
-    }
-
-    /**
-     * Create web server
-     * @param port default 3000
-     */
-    listen(port?: number) {
-        this.compose();
-
-        port = port || 3000;
-        serve(this.handleRequest.bind(this), { port });
-        console.log(`\x1b[90m[Spring] ${this.version()}\x1b[0m`);
-        console.log(`\x1b[90m[Spring] Repository: https://github.com/metadream/deno-spring\x1b[0m`);
-        console.log(`[Spring] Server is running at \x1b[4m\x1b[36mhttp://localhost:${port}\x1b[0m`);
-        return this;
-    }
-
-    /**
-     * Handles dynamic requests
-     * @param request
-     * @returns
-     */
-    private async handleRequest(request: Request, connInfo: ConnInfo): Promise<Response> {
-        const time = Date.now();
-        const ctx = new Context(request);
-        ctx.remoteAddr = connInfo.remoteAddr;
-        ctx.view = this.engine.view.bind(this.engine);
-        ctx.render = this.engine.render.bind(this.engine);
-        Object.assign(ctx, App.plugins);
-
+    // Handle request
+    private async handleRequest(request: Request, info: Deno.ServeHandlerInfo) {
+        const ctx = new Context(request, info, this.engine);
+        Object.assign(ctx, Global.plugins);
         let body = null;
-        try {
-            const route = this.router.find(ctx.method, ctx.path)
-                || this.router.find(Method.ALL, ctx.path);
 
+        try {
+            const route = this.router.find(ctx.method, ctx.path);
             if (route) {
-                ctx.params = route.params || {};
-                ctx.template = route.template;
-                await this.callMiddlewares(ctx);
-                body = await route.callback(ctx);
+                ctx.route = route;
+                for (const middleware of Global.middlewares) {
+                    await middleware.handler(ctx);
+                }
+                body = await route.handler(ctx);
                 if (route.template) {
                     body = await ctx.view(route.template, body);
                 }
             } else {
-                ctx.throw("Route not found: " + ctx.path, HttpStatus.NOT_FOUND);
+                throw new HttpError("Route not found: " + ctx.path, HttpStatus.NOT_FOUND);
             }
-        } catch (e) {
-            console.error("\x1b[31m[Spring]", e, "\x1b[0m");
+        } catch (err) {
+            console.error("\x1b[31m[Spring]", err, "\x1b[0m");
+            ctx.status = err.status || HttpStatus.INTERNAL_SERVER_ERROR;
 
-            if (App.errorHandler) {
-                e.status = e.status || HttpStatus.INTERNAL_SERVER_ERROR;
-                ctx.status = e.status || HttpStatus.INTERNAL_SERVER_ERROR;
-                ctx.error = e;
-                body = await App.errorHandler(ctx);
+            if (Global.errorHandler) {
+                body = await Global.errorHandler(ctx, err);
             } else {
-                ctx.status = e.status || HttpStatus.INTERNAL_SERVER_ERROR;
-                body = e.message || "Internal Server Error";
+                body = err.message || "Internal Server Error";
             }
         }
-        ctx.set("x-response-time", (Date.now() - time) + "ms");
-        return ctx.build(body);
+        return await ctx.respond(body);
     }
 
-    /**
-     * Handles static resource requests
-     * @param ctx
-     * @returns
-     */
-    private async handleStatic(ctx: Context) {
+    // Handle static resource
+    private async handleResource(ctx: Context): Promise<ArrayBuffer | undefined> {
         // Removes the leading slash and converts relative path to absolute path
         let file = resolve(ctx.path.replace(/^\/+/, ""));
+
         try {
             const stat = await Deno.stat(file);
             if (stat.isDirectory) {
@@ -165,40 +109,64 @@ export class Server {
             }
         } catch (e) {
             if (e instanceof Deno.errors.NotFound) {
-                ctx.throw("File not found", HttpStatus.NOT_FOUND);
+                throw new HttpError("File not found", HttpStatus.NOT_FOUND);
             } else {
                 throw e;
             }
         }
     }
 
+    private onListen(params: { hostname: string; port: number }) {
+        console.log(`\x1b[90m[Spring] ${this.version()}\x1b[0m`);
+        console.log(`\x1b[90m[Spring] Repository: https://github.com/metadream/deno-spring\x1b[0m`);
+        console.log(`[Spring] Server is running at \x1b[4m\x1b[36mhttp://${params.hostname}:${params.port}\x1b[0m`);
+    }
+
+    private onError(error: unknown): Response | Promise<Response> {
+        console.error("\x1b[31m[Spring]", error, "\x1b[0m");
+        return new Response(error.message, { status: HttpStatus.INTERNAL_SERVER_ERROR });
+    }
+
     // Create shortcut methods
     private shortcut(method: string) {
-        return (path: string, callback: Callback) => {
-            this.router.add({ method, path, callback });
+        return (path: string, handler: RouteHandler) => {
+            this.router.add({ method, path, handler });
             return this;
-        }
+        };
     }
 
-    // Call middlewares by priority
-    private async callMiddlewares(ctx: Context) {
-        for (const middleware of App.middlewares) {
-            await middleware.callback(ctx);
-        }
-    }
-
-    // Compose all routes from application cache
-    private compose() {
-        App.compose();
-        App.routes.forEach(route => this.router.add(route));
-    }
-
-    // Format versions
+    // Format deno version object
     private version() {
         const vers = JSON.stringify(Deno.version);
-        return vers
-            ? vers.replace(/(\"|{|})/g, "").replace(/(:|,)/g, "$1 ")
-            : "Unable to get deno version";
+        return vers ? vers.replace(/(\"|{|})/g, "").replace(/(:|,)/g, "$1 ") : "Unable to get deno version";
     }
 
+    // Create routes in shortcuts
+    get(path: string, handler: RouteHandler) {
+        return this.shortcut(Method.GET)(path, handler);
+    }
+
+    post(path: string, handler: RouteHandler) {
+        return this.shortcut(Method.POST)(path, handler);
+    }
+
+    put(path: string, handler: RouteHandler) {
+        return this.shortcut(Method.PUT)(path, handler);
+    }
+
+    delete(path: string, handler: RouteHandler) {
+        return this.shortcut(Method.DELETE)(path, handler);
+    }
+
+    patch(path: string, handler: RouteHandler) {
+        return this.shortcut(Method.PATCH)(path, handler);
+    }
+
+    head(path: string, handler: RouteHandler) {
+        return this.shortcut(Method.HEAD)(path, handler);
+    }
+
+    options(path: string, handler: RouteHandler) {
+        return this.shortcut(Method.OPTIONS)(path, handler);
+    }
 }

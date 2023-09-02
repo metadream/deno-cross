@@ -1,8 +1,66 @@
 import { Context } from "./context.ts";
 
+// Template engine compiled function
+export type Renderer = (data: unknown) => string;
+
+// Route callback function in the controller
+export type RouteHandler = (
+    ctx: Context,
+    err?: Error,
+) => BodyInit | Response | null | undefined | Promise<BodyInit | Response | null | undefined>;
+
+// App server options
+export type ServerOptions = {
+    port?: number;
+    hostname?: string;
+    viewRoot?: string;
+    imports?: Record<string, unknown>;
+    assets?: string[];
+    onListen?: (params: { hostname: string; port: number }) => void;
+    onError?: (error: unknown) => Response | Promise<Response>;
+};
+
+// Template engine options
+export type EngineOptions = {
+    viewRoot: string;
+    imports: Record<string, unknown>;
+};
+
+// Decorator entity
+export type Decorator = {
+    type: "class" | "method";
+    name: string;
+    value?: string | number;
+    fn?: string | symbol;
+};
+
+// Route entity
+export type Route = {
+    method: string;
+    path: string;
+    handler: RouteHandler;
+    template?: string;
+    pattern?: RegExp;
+    params?: Record<string, string>;
+};
+
+// Middleware entity
+export type Middleware = {
+    priority: number;
+    handler: RouteHandler;
+};
+
+// Custom http error
+export class HttpError extends Error {
+    status: number;
+    constructor(message: string, status?: number) {
+        super(message);
+        this.status = !status || status < 400 || status > 511 ? HttpStatus.INTERNAL_SERVER_ERROR : status;
+    }
+}
+
 // Request methods
 export const enum Method {
-    ALL = "ALL",
     GET = "GET",
     POST = "POST",
     PUT = "PUT",
@@ -82,77 +140,4 @@ export const Mime: Record<string, string> = {
     ".war": "application/java-archive",
     ".gz": "application/gzip",
     ".zip": "application/zip",
-}
-
-// Route callback function in the controller
-export type Callback = (ctx: Context) => void;
-// Template engine compiled function
-export type Renderer = (data: unknown) => string
-
-// Decorator entity
-export type Decorator = {
-    type: "class" | "method";
-    name: string;
-    value?: string | number;
-    fn?: string | symbol;
-}
-
-// Route entity
-export type Route = {
-    method: string;
-    path: string;
-    callback: Callback;
-    template?: string;
-    pattern?: RegExp;
-    params?: Record<string, string>;
-}
-
-// Middleware entity
-export type Middleware = {
-    priority: number;
-    callback: Callback;
-}
-
-// Template engine options
-export type EngineOptions = {
-    root: string;
-    imports: Record<string, unknown>;
-}
-
-// Cookie options
-export type CookieOptions = {
-    /** Expiration date of the cookie. */
-    expires?: Date;
-    /** Max-Age of the Cookie. Max-Age must be an integer superior or equal to 0. */
-    maxAge?: number;
-    /** Specifies those hosts to which the cookie will be sent. */
-    domain?: string;
-    /** Indicates a URL path that must exist in the request. */
-    path?: string;
-    /** Indicates if the cookie is made using SSL & HTTPS. */
-    secure?: boolean;
-    /** Indicates that cookie is not accessible via JavaScript. */
-    httpOnly?: boolean;
-    /**
-     * Allows servers to assert that a cookie ought not to
-     * be sent along with cross-site requests.
-     */
-    sameSite?: "Strict" | "Lax" | "None";
-    /** Additional key value pairs with the form "key=value" */
-    unparsed?: string[];
-}
-
-/**
- * Custom Http Error
- * Add HTTP status code field
- */
-export class HttpError extends Error {
-    status: number;
-
-    constructor(message: string, status?: number) {
-        super(message);
-        this.status = !status || status < 400 || status > 511
-            ? HttpStatus.INTERNAL_SERVER_ERROR : status;
-    }
-
-}
+};

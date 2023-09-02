@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { resolve } from "./deps.ts";
-import { Renderer, EngineOptions } from "./defs.ts";
+import { EngineOptions, Renderer } from "./types.ts";
 
 // Template syntax
 const syntax = {
@@ -11,29 +11,29 @@ const syntax = {
     INTERPOLATE: /\{\{=([\s\S]+?)\}\}/g,
     CONDITIONAL: /\{\{\?(\?)?\s*([\s\S]*?)\s*\}\}/g,
     ITERATIVE: /\{\{~\s*(?:\}\}|([\s\S]+?)\s*\:\s*([\w$]+)\s*(?:\:\s*([\w$]+))?\s*\}\})/g,
-}
+};
 
 // Variable patterns
 const variable = {
     REMOVE: /\/\*[\w\W]*?\*\/|\/\/[^\n]*\n|\/\/[^\n]*$|"(?:[^"\\]|\\[\w\W])*"|'(?:[^'\\]|\\[\w\W])*'|\s*\.\s*[$\w\.]+/g,
     SPLIT: /[^\w$]+/g,
-    KEYWORDS: /\b(abstract|arguments|async|await|boolean|break|byte|case|catch|char|class|const|continue|debugger|default|delete|do|double|else|enum|eval|export|extends|false|final|finally|float|for|function|goto|if|implements|import|in|instanceof|int|interface|let|long|native|new|null|of|package|private|protected|public|return|short|static|super|switch|synchronized|then|this|throw|throws|transient|true|try|typeof|undefined|var|void|volatile|while|with|yield|parseInt|parseFloat|decodeURI|decodeURIComponent|encodeURI|encodeURIComponent|isFinite|isNaN|Array|ArrayBuffer|Object|Function|Math|Date|Boolean|String|RegExp|Map|Set|JSON|Promise|Reflect|Number|BigInt|Infinity|Error|NaN)\b/g,
+    KEYWORDS:
+        /\b(abstract|arguments|async|await|boolean|break|byte|case|catch|char|class|const|continue|debugger|default|delete|do|double|else|enum|eval|export|extends|false|final|finally|float|for|function|goto|if|implements|import|in|instanceof|int|interface|let|long|native|new|null|of|package|private|protected|public|return|short|static|super|switch|synchronized|then|this|throw|throws|transient|true|try|typeof|undefined|var|void|volatile|while|with|yield|parseInt|parseFloat|decodeURI|decodeURIComponent|encodeURI|encodeURIComponent|isFinite|isNaN|Array|ArrayBuffer|Object|Function|Math|Date|Boolean|String|RegExp|Map|Set|JSON|Promise|Reflect|Number|BigInt|Infinity|Error|NaN)\b/g,
     NUMBER: /^\d[^,]*|,\d[^,]*/g,
     BOUNDARY: /^,+|,+$/g,
-    SPLIT2: /^$|,+/
-}
+    SPLIT2: /^$|,+/,
+};
 
 /**
  * A compact, high-performance and full-featured template engine
  * Licensed under the MIT license.
  */
 export class Engine {
-
     // Cache template file and compiled function
     private cache: Record<string, Renderer> = {};
 
     // Template engine options
-    private options: EngineOptions = { root: "", imports: {} }
+    private options: EngineOptions = { viewRoot: "", imports: {} };
 
     /**
      * Initialize custom options
@@ -68,7 +68,9 @@ export class Engine {
                 codes.push(arrName);
                 const defI = idxName ? "let " + idxName + "=-1;" : "";
                 const incI = idxName ? idxName + "++;" : "";
-                return this.output("if(" + arrName + "){" + defI + "for (let " + valName + " of " + arrName + "){" + incI + "");
+                return this.output(
+                    "if(" + arrName + "){" + defI + "for (let " + valName + " of " + arrName + "){" + incI + "",
+                );
             })
             .replace(syntax.EVALUATE, (_: string, code: string) => {
                 code = this.unescape(code);
@@ -76,7 +78,7 @@ export class Engine {
                 return this.output(code + ";");
             });
 
-        let source = ("let out='" + tmpl + "';return out;");
+        let source = "let out='" + tmpl + "';return out;";
         source = this.declare(codes) + source;
 
         try {
@@ -107,7 +109,7 @@ export class Engine {
      * @param {object} data
      * @returns string
      */
-    async view(file: string, data: unknown) {
+    async view(file: string, data: unknown): Promise<string> {
         let render = this.cache[file];
         if (!render) {
             render = this.cache[file] = this.compile(await this.include(file));
@@ -121,11 +123,11 @@ export class Engine {
      * @returns string
      */
     private async include(file: string) {
-        let tmpl = await Deno.readTextFile(resolve(this.options.root, file));
+        let tmpl = await Deno.readTextFile(resolve(this.options.viewRoot, file));
         while (syntax.PARTIAL.test(tmpl)) {
             tmpl = await this.replaceAsync(tmpl, syntax.PARTIAL, async (_: string, _file: string) => {
-                return await Deno.readTextFile(resolve(this.options.root, _file));
-            })
+                return await Deno.readTextFile(resolve(this.options.viewRoot, _file));
+            });
         }
         return tmpl;
     }
@@ -138,7 +140,10 @@ export class Engine {
     private block(tmpl: string): string {
         const blocks: Record<string, string> = {};
         return tmpl
-            .replace(syntax.BLOCK_DEFINE, (_, name: string, block) => { blocks[name] = block; return ""; })
+            .replace(syntax.BLOCK_DEFINE, (_, name: string, block) => {
+                blocks[name] = block;
+                return "";
+            })
             .replace(syntax.BLOCK_HOLDER, (_, name: string) => blocks[name] || "");
     }
 
@@ -148,12 +153,12 @@ export class Engine {
      * @returns {string}
      */
     private declare(codes: string[]): string {
-        const varNames = codes.join(',')
-            .replace(variable.REMOVE, '')
-            .replace(variable.SPLIT, ',')
-            .replace(variable.KEYWORDS, '')
-            .replace(variable.NUMBER, '')
-            .replace(variable.BOUNDARY, '')
+        const varNames = codes.join(",")
+            .replace(variable.REMOVE, "")
+            .replace(variable.SPLIT, ",")
+            .replace(variable.KEYWORDS, "")
+            .replace(variable.NUMBER, "")
+            .replace(variable.BOUNDARY, "")
             .split(variable.SPLIT2);
 
         const unique: Record<string, boolean> = {};
@@ -166,7 +171,7 @@ export class Engine {
         }
 
         if (prefixVars.length) {
-            const varString = prefixVars.map(v => v + "=data." + v).join(",");
+            const varString = prefixVars.map((v) => v + "=data." + v).join(",");
             return "let " + varString + ";";
         }
         return "";
@@ -184,7 +189,7 @@ export class Engine {
             .replace(/\n\s*\/\/.*/g, "") // remove js comments inline
             .replace(/(\r|\n)[\t ]+/g, "") // remove leading spaces
             .replace(/[\t ]+(\r|\n)/g, "") // remove trailing spaces
-            .replace(/\r|\n|\t/g, "") // remove breaks and tabs
+            .replace(/\r|\n|\t/g, ""); // remove breaks and tabs
     }
 
     /**
@@ -193,7 +198,7 @@ export class Engine {
      * @returns {string}
      */
     private escape(tmpl: string): string {
-        return tmpl.replace(/\\/g, '\\\\').replace(/\'/g, "\\'");
+        return tmpl.replace(/\\/g, "\\\\").replace(/\'/g, "\\'");
     }
 
     /**
@@ -202,7 +207,7 @@ export class Engine {
      * @returns {string}
      */
     private unescape(tmpl: string): string {
-        return tmpl.replace(/\\'/g, '\'');
+        return tmpl.replace(/\\'/g, "'");
     }
 
     private output(code: string): string {
@@ -214,10 +219,9 @@ export class Engine {
         const replacer: any = (match: any, ...args: any) => {
             const promise = asyncFn(match, ...args);
             promises.push(promise);
-        }
+        };
         str.replace(regex, replacer);
         const data = await Promise.all(promises);
         return str.replace(regex, () => data.shift());
     }
-
 }

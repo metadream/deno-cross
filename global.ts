@@ -1,17 +1,16 @@
-import { Callback, Decorator, HttpError, Middleware, Route } from "./defs.ts";
+import { Decorator, HttpError, Middleware, Route, RouteHandler } from "./types.ts";
 import { Reflect } from "./deps.ts";
 
 /**
  * Spring Runtime Cache
  * Caching instances of decorator constructors
  */
-export class App {
-
+export class Global {
     // All the global instances at runtime
     static plugins: Record<string, unknown> = {};
     static middlewares: Middleware[] = [];
     static routes: Route[] = [];
-    static errorHandler?: Callback;
+    static errorHandler?: RouteHandler;
 
     // To avoid creating instance repeatedly, use "Set" to automatically deduplicate.
     // deno-lint-ignore no-explicit-any
@@ -35,8 +34,8 @@ export class App {
             // There may be also more than one method decorator on single method,
             // so defines method decorators group by method name (which is "fn" in this case)
             const fn = decorator.fn as string;
-            const decoratorGroup: Record<string, Decorator[]>
-                = Reflect.getMetadata("method:decorators", constructor) || {};
+            const decoratorGroup: Record<string, Decorator[]> = Reflect.getMetadata("method:decorators", constructor) ||
+                {};
             const decorators: Decorator[] = decoratorGroup[fn] || [];
 
             decorators.push(decorator);
@@ -75,52 +74,54 @@ export class App {
             const g: Record<string, Decorator[]> = Reflect.getMetadata("method:decorators", c) || {};
             const group = Object.values(g);
 
-            for (const decorators of group) for (const decorator of decorators) {
-                if (!decorator.fn) continue;
-                const callback = instance[decorator.fn].bind(instance);
+            for (const decorators of group) {
+                for (const decorator of decorators) {
+                    if (!decorator.fn) continue;
+                    const handler = instance[decorator.fn].bind(instance);
 
-                // Parse error handler
-                if (decorator.name === "ErrorHandler") {
-                    if (this.errorHandler) {
-                        throw new HttpError("Duplicated error handler");
+                    // Parse error handler
+                    if (decorator.name === "ErrorHandler") {
+                        if (this.errorHandler) {
+                            throw new HttpError("Duplicated error handler");
+                        }
+                        this.errorHandler = handler;
+                        continue;
                     }
-                    this.errorHandler = callback;
-                    continue;
+
+                    // Parse middleware handlers
+                    if (decorator.name === "Middleware") {
+                        const priority = decorator.value as number;
+                        this.middlewares.push({ handler, priority });
+                        continue;
+                    }
+
+                    // Ignore template decorator (but will be used later)
+                    if (decorator.name === "View") {
+                        continue;
+                    }
+
+                    // Parse routes such as GET, POST, PUT...
+                    if (!controller) {
+                        throw new HttpError("The class of route must be annotated with @Controller");
+                    }
+
+                    // Find template decorator in the same method scope
+                    const tmpl: Decorator | undefined = decorators.find((v) => v.name === "View");
+                    const template = tmpl ? tmpl.value as string : undefined;
+                    const prefix = controller.value as string || "";
+                    const path = decorator.value as string || "";
+
+                    this.routes.push({
+                        method: decorator.name,
+                        path: ("/" + prefix + path).replace(/[\/]+/g, "/"),
+                        handler,
+                        template,
+                    });
                 }
-
-                // Parse middleware handlers
-                if (decorator.name === "Middleware") {
-                    const priority = decorator.value as number;
-                    this.middlewares.push({ callback, priority });
-                    continue;
-                }
-
-                // Ignore template decorator (but will be used later)
-                if (decorator.name === "View") {
-                    continue;
-                }
-
-                // Parse routes such as GET, POST, PUT...
-                if (!controller) {
-                    throw new HttpError("The class of route must be annotated with @Controller");
-                }
-
-                // Find template decorator in the same method scope
-                const tmpl: Decorator | undefined = decorators.find(v => v.name === "View");
-                const template = tmpl ? tmpl.value as string : undefined;
-                const prefix = controller.value as string || "";
-                const path = decorator.value as string || "";
-
-                this.routes.push({
-                    method: decorator.name,
-                    path: ("/" + prefix + path).replace(/[\/]+/g, "/"),
-                    callback, template
-                });
             }
         }
 
         // Sort middlewares by priority
         this.middlewares.sort((a, b) => a.priority - b.priority);
     }
-
 }
