@@ -51,10 +51,10 @@ export class Context {
         this.addr = info.remoteAddr;
         this.method = req.method;
         this.json = () => req.json();
-        this.text = req.text;
-        this.blob = req.blob;
-        this.form = req.formData;
-        this.buffer = req.arrayBuffer;
+        this.text = () => req.text();
+        this.blob = () => req.blob();
+        this.form = () => req.formData();
+        this.buffer = () => req.arrayBuffer();
 
         const url = new URL(req.url);
         this.url = url.href; // ex. https=//example.com=3000/users?page=1
