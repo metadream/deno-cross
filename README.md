@@ -5,10 +5,10 @@ A compact, high-performance and full-featured web server framework in Deno.
 ## Shortcut mode
 
 ```ts
-import app from "https://deno.land/x/spring/mod.ts";
+import { app } from "https://deno.land/x/spring/mod.ts";
 
 app.get("/:user", (ctx) => ctx.params.user);
-app.listen();
+app.boot();
 ```
 
 Note that features such as plugins, middlewares, template engine and unified
@@ -17,23 +17,23 @@ ways.
 
 ## Decorator mode
 
-Importing a ts/tsx file containing any decorators to use its features. Shortcut
+Importing a `ts` file containing any decorators to use its features. Shortcut
 mode and decorator mode do not conflict and can be used together. The only
 difference in performance between the two is that the latter needs to parse all
 decorators at startup, it is almost the same in runtime.
 
 ```ts
-// main.ts
+// mod.ts
 import app from "https://deno.land/x/spring/mod.ts";
 import "./controllers/MyController.ts"; // DO NOT forget import the controllers
 
-app.listen();
+app.boot();
 ```
 
 ### 1. Controllers
 
 ```ts
-// my-controller.ts
+// MyController.ts
 import { Context, Controller, Get } from "https://deno.land/x/spring/mod.ts";
 
 @Controller("/prefix")
@@ -51,7 +51,7 @@ You can add middleware decorator on any class method, including controllers. The
 role of the middleware parameter is to set the execution priority.
 
 ```ts
-// my-middleware.ts
+// MyMiddleware.ts
 import { Context, Middleware } from "https://deno.land/x/spring/mod.ts";
 
 export class MyMiddleware {
@@ -59,6 +59,7 @@ export class MyMiddleware {
   cors(ctx: Context) {
     // do something second
   }
+
   @Middleware(1)
   auth(ctx: Context) {
     // do something first
@@ -72,7 +73,7 @@ Plugin decorators can only be added to classes, and the parameter is the name
 bound to the context.
 
 ```ts
-// my-plugin.ts
+// MyPlugin.ts
 import { Plugin } from "https://deno.land/x/spring/mod.ts";
 
 @Plugin("redis")
@@ -100,12 +101,13 @@ used for rendering automatically. The built-in engine syntax see
 [SYNTAX.md](/SYNTAX.md)
 
 ```ts
-// main.ts
-app.init({  // Engine options, not necessary
-  root: "",   // The root of template files
-  imports: {} // Global imports for template
-})
-.listen();
+// mod.ts
+app.boot({  // Engine options, not necessary
+  viewRoot: "./pages",   // The root of template files
+  imports: {  // Global imports for template
+    siteName: "My Blog"
+  }
+});
 
 // controller.ts
 import { Context, Controller, Get, View } from "https://deno.land/x/spring/mod.ts";
@@ -113,7 +115,7 @@ import { Context, Controller, Get, View } from "https://deno.land/x/spring/mod.t
 @Controller("/prefix")
 export class MyController {
   @Get("/:user")
-  @View("index.html") // or @View("root/path/index.html") if engine not initialized
+  @View("index.html") // or @View("./project/path/index.html") if options not initialized
   getUser(ctx: Context) {
     return { name: ctx.params.user };
   }
@@ -135,35 +137,37 @@ import { Context, ErrorHandler } from "https://deno.land/x/spring/mod.ts";
 
 export class AnyClass {
   @ErrorHandler()
-  error(ctx: Context) {
-    console.log(ctx.error);
+  error(ctx: Context, err: Error) {
+    return {
+      status: ctx.status,
+      message: err.message,
+    };
   }
 }
 ```
 
 ## API Reference
 
-### Constructor
+### Bootstrap
 
-To start the web server, you simply write a single line of code `app.listen()`.
-The instance of `app` has three main methods as follow:
+To start the web server, you simply write a single line of code `app.boot()`.
+The options as follow:
 
-- `serve(path)` `path` is the relative path of static resources directory.
-  `serve` method is the syntactic sugar for `get` routing, so the `path` must
-  starts with "/".
-- `engine(options)` Initialize the built-in template engine. The default value
-  of `options` is `{ root: "", imports: {} }`.
-- `listen(port)` HTTP server listening port, default 3000.
+- `port` HTTP server listening port, default 3000.
+- `hostname` HTTP server hostname, default "0.0.0.0"
+- `viewRoot` The root of template files
+- `imports` Global imports for template
+- `assets` The array of paths of static resources
+- `onListen`
+- `onError`
 
 ### Routes
 
-The route methods including `all`,`get`,`post`,`put`,`del`,`patch`,`head`,`opt`,
-and all methods have the same parameters. The internal router is based on radix
-tree, so you don't need to consider the order of route. For more usage, please
-refer to: https://github.com/zhmushan/router.
+The route methods including `get`,`post`,`put`,`del`,`patch`,`head`,`opt`,
+and all methods have the same parameters.
 
 - `path` Route path.
-- `callback` Request handle function.
+- `handler` Request handle function.
 
 ### Decorators
 
@@ -171,7 +175,6 @@ refer to: https://github.com/zhmushan/router.
 | ------------- | --------------- | ---------- | ----------------------------- |
 | @Controller   | ClassDecorator  | string     | Prefix for request route      |
 | @Plugin       | ClassDecorator  | string     | Plugin name with context      |
-| @All          | MethodDecorator | string     | Route path                    |
 | @Get          | MethodDecorator | string     | Route path                    |
 | @Post         | MethodDecorator | string     | Route path                    |
 | @Put          | MethodDecorator | string     | Route path                    |
@@ -204,9 +207,7 @@ contains properties and methods related to requests and responses.
   https://deno.com/deploy/docs/runtime-headers
 - `ctx.cookies` Including one method to get request cookie:
   `ctx.cookies.get(name)`
-- `ctx.body` Including five promised methods to parse request body: `text()`,
-  `json()`, `form()`, `blob()`, `buffer()`.
-- `ctx.request` Native request instance.
+- `ctx.text`, `ctx.json`, `ctx.form`, `ctx.blob`, `ctx.buffer` Promised methods to parse request body.
 
 #### Response Properties
 
@@ -221,8 +222,6 @@ contains properties and methods related to requests and responses.
 
 - `ctx.set(name, value)` The following 3 methods are used to manipulate response
   headers
-- `ctx.append(name, value)`
-- `ctx.delete(name)`
 - `ctx.redirect(url[, status])` Redirect url with default status code 308.
 
 #### Others
@@ -230,12 +229,10 @@ contains properties and methods related to requests and responses.
 - `ctx.view(tmplFile, data)` If the controller method does not add a `@View`
   decorator, you can call this method to return the rendered text content.
 - `ctx.render(tmplText, data)` Render template text, usually not needed.
-- `ctx.error`
-- `ctx.throw(message[, status])`
 
 #### Return types
 
-Controller methods are allowed to return the following object types：
+Controller methods are allowed to return the following object types:
 
 - `BodyInit`: Blob, BufferSource, FormData, ReadableStream, URLSearchParams, or
   USVString
