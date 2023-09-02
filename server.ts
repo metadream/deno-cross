@@ -20,14 +20,15 @@ export class Server {
         onError: this.onError.bind(this),
     };
 
+    // Create web server
     boot(options?: ServerOptions): Deno.Server {
-        this.init(options);
+        Object.assign(this.svrOpt, options);
+        this.initialize();
         return Deno.serve(this.svrOpt, this.handleRequest.bind(this));
     }
 
-    private init(options?: ServerOptions) {
-        Object.assign(this.svrOpt, options);
-
+    // Initialize app components
+    private initialize() {
         // Init template engine
         this.engine.init({
             viewRoot: this.svrOpt.viewRoot || "",
@@ -47,8 +48,8 @@ export class Server {
     }
 
     // Handle request
-    private async handleRequest(request: Request, info: Deno.ServeHandlerInfo) {
-        const ctx = new Context(request, info, this.engine);
+    private async handleRequest(req: Request, info: Deno.ServeHandlerInfo) {
+        const ctx = new Context(req, info, this.engine);
         Object.assign(ctx, Global.plugins);
         let body = null;
 
@@ -56,9 +57,12 @@ export class Server {
             const route = this.router.find(ctx.method, ctx.path);
             if (route) {
                 ctx.route = route;
+
+                // Run middlewares
                 for (const middleware of Global.middlewares) {
                     await middleware.handler(ctx);
                 }
+                // Run route handler
                 body = await route.handler(ctx);
                 if (route.template) {
                     body = await ctx.view(route.template, body);
@@ -76,7 +80,7 @@ export class Server {
                 body = err.message || "Internal Server Error";
             }
         }
-        return await ctx.respond(body);
+        return ctx.respond(body);
     }
 
     // Handle static resource
@@ -116,15 +120,17 @@ export class Server {
         }
     }
 
+    // Listen event
     private onListen(params: { hostname: string; port: number }) {
         console.log(`\x1b[90m[Spring] ${this.version()}\x1b[0m`);
         console.log(`\x1b[90m[Spring] Repository: https://github.com/metadream/deno-spring\x1b[0m`);
         console.log(`[Spring] Server is running at \x1b[4m\x1b[36mhttp://${params.hostname}:${params.port}\x1b[0m`);
     }
 
+    // Error event
     private onError(error: unknown): Response | Promise<Response> {
         console.error("\x1b[31m[Spring]", error, "\x1b[0m");
-        return new Response(error.message, { status: HttpStatus.INTERNAL_SERVER_ERROR });
+        return new Response((error as Error).message, { status: HttpStatus.INTERNAL_SERVER_ERROR });
     }
 
     // Create shortcut methods
@@ -145,27 +151,21 @@ export class Server {
     get(path: string, handler: RouteHandler) {
         return this.shortcut(Method.GET)(path, handler);
     }
-
     post(path: string, handler: RouteHandler) {
         return this.shortcut(Method.POST)(path, handler);
     }
-
     put(path: string, handler: RouteHandler) {
         return this.shortcut(Method.PUT)(path, handler);
     }
-
     delete(path: string, handler: RouteHandler) {
         return this.shortcut(Method.DELETE)(path, handler);
     }
-
     patch(path: string, handler: RouteHandler) {
         return this.shortcut(Method.PATCH)(path, handler);
     }
-
     head(path: string, handler: RouteHandler) {
         return this.shortcut(Method.HEAD)(path, handler);
     }
-
     options(path: string, handler: RouteHandler) {
         return this.shortcut(Method.OPTIONS)(path, handler);
     }
