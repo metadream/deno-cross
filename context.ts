@@ -57,10 +57,10 @@ export class Context {
         this.buffer = () => req.arrayBuffer();
 
         const url = new URL(req.url);
-        this.url = url.href; // ex. https=//example.com=3000/users?page=1
-        this.origin = url.origin; //ex. https=//example.com=3000
-        this.protocol = url.protocol; //ex. https=
-        this.host = url.host; // ex. example.com=3000
+        this.url = url.href; // ex. https://example.com:3000/users?page=1
+        this.origin = url.origin; //ex. https://example.com:3000
+        this.protocol = url.protocol; //ex. https:
+        this.host = url.host; // ex. example.com:3000
         this.hostname = url.hostname; //ex. example.com
         this.port = url.port; // ex. 3000
         this.path = url.pathname; // ex. /users
