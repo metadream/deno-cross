@@ -7,15 +7,15 @@ export type Renderer = (data: unknown) => string;
 export type RouteHandler = (
     ctx: Context,
     err?: Error,
-) => BodyInit | Response | null | undefined | Promise<BodyInit | Response | null | undefined>;
+) => void | BodyInit | Response | null | undefined | Promise<BodyInit | Response | null | undefined>;
 
 // App server options
 export type ServerOptions = {
     port?: number;
     hostname?: string;
     viewRoot?: string;
-    imports?: Record<string, unknown>;
     assets?: string[];
+    imports?: object;
     onListen?: (params: { hostname: string; port: number }) => void;
     onError?: (error: unknown) => Response | Promise<Response>;
 };

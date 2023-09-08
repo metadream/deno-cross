@@ -16,36 +16,46 @@ export class Server {
     private svrOpt: ServerOptions = {
         port: 3000,
         hostname: "0.0.0.0",
+        viewRoot: "",
+        imports: {},
         onListen: this.onListen.bind(this),
         onError: this.onError.bind(this),
     };
 
-    // Create web server
-    boot(options?: ServerOptions): Deno.Server {
-        Object.assign(this.svrOpt, options);
-        this.initialize();
-        return Deno.serve(this.svrOpt, this.handleRequest.bind(this));
+    // Run web server
+    run(): Server {
+        Deno.serve(this.svrOpt, this.handleRequest.bind(this));
+        return this;
     }
 
-    // Initialize app components
-    private initialize() {
-        // Init template engine
-        this.engine.init({
-            viewRoot: this.svrOpt.viewRoot || "",
-            imports: this.svrOpt.imports || {},
-        });
-
-        // Init static resources
-        if (this.svrOpt.assets) {
-            for (const path of this.svrOpt.assets) {
+    // Set static resources paths
+    assets(...assets: string[]) {
+        if (assets && assets.length) {
+            for (const path of assets) {
                 this.router.add({ method: Method.GET, path, handler: this.handleResource });
             }
         }
-
-        // Resolve decorators and routes
-        Global.compose();
-        Global.routes.forEach((route) => this.router.add(route));
+        return this;
     }
+
+    // Set views root of template engine
+    views(viewRoot: string) {
+        if (viewRoot) this.svrOpt.viewRoot = viewRoot;
+        return this;
+    }
+
+    // Set imports of template engine
+    imports(imports: object) {
+        if (imports) this.svrOpt.imports = imports;
+        return this;
+    }
+
+    // Initialize app components
+    // private initialize() {
+    //     // Resolve decorators and routes
+    //     Global.compose();
+    //     Global.routes.forEach((route) => this.router.add(route));
+    // }
 
     // Handle request
     private async handleRequest(req: Request, info: Deno.ServeHandlerInfo) {
@@ -133,18 +143,18 @@ export class Server {
         return new Response((error as Error).message, { status: HttpStatus.INTERNAL_SERVER_ERROR });
     }
 
+    // Format deno version object
+    private version() {
+        const vers = JSON.stringify(Deno.version);
+        return vers ? vers.replace(/(\"|{|})/g, "").replace(/(:|,)/g, "$1 ") : "Unable to get deno version";
+    }
+
     // Create shortcut methods
     private shortcut(method: string) {
         return (path: string, handler: RouteHandler) => {
             this.router.add({ method, path, handler });
             return this;
         };
-    }
-
-    // Format deno version object
-    private version() {
-        const vers = JSON.stringify(Deno.version);
-        return vers ? vers.replace(/(\"|{|})/g, "").replace(/(:|,)/g, "$1 ") : "Unable to get deno version";
     }
 
     // Create routes in shortcuts
