@@ -25,6 +25,7 @@ export function Component(): ClassDecorator {
         container.register(constructor, {
             type: "class",
             name: "Component",
+            value: constructor.name,
         });
     };
 }
@@ -35,6 +36,16 @@ export function Controller(prefix?: string): ClassDecorator {
             type: "class",
             name: "Controller",
             value: prefix,
+        });
+    };
+}
+
+export function Autowired(): PropertyDecorator {
+    return (target, name) => {
+        container.register(target.constructor, {
+            type: "property",
+            name: "Autowired",
+            value: name as string,
         });
     };
 }
