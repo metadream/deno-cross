@@ -27,9 +27,9 @@ export class Server {
 
     // Run web server
     run(): Server {
-        this.engine.init(this.engineOptions);
         container.compose();
         container.routes.forEach((route) => this.router.add(route));
+        this.engine.init(this.engineOptions);
         Deno.serve(this.serverOptions, this.handleRequest.bind(this));
         return this;
     }

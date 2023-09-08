@@ -78,7 +78,6 @@ class Container {
                         this.errorHandler = handler;
                         continue;
                     }
-
                     // Ignore template decorator (but will be used later)
                     if (decorator.name === "View") {
                         continue;
