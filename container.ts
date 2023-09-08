@@ -5,10 +5,10 @@ class Container {
     errorHandler?: RouteHandler;
     interceptors: RouteHandler[] = [];
     routes: Route[] = [];
-    // private components = new Map<string, object>();
 
     // To avoid creating instance repeatedly, use "Set" to automatically deduplicate.
     private constructors: Set<any> = new Set();
+    private components = new Map<string, object>();
 
     register(constructor: any, decorator: Decorator) {
         this.constructors.add(constructor);
@@ -18,6 +18,12 @@ class Container {
             const decorators: Decorator[] = Reflect.getMetadata("class:decorators", constructor) || [];
             decorators.push(decorator);
             Reflect.defineMetadata("class:decorators", decorators, constructor);
+
+            if (decorator.name === "Component") {
+                this.components.set(constructor.name, constructor);
+            }
+        } else if (decorator.type === "property") {
+            Reflect.defineMetadata("property:decorators", decorator, constructor);
         } else {
             // There may be also more than one method decorator on single method,
             // so defines method decorators group by method name (which is "fn" in this case)
@@ -52,13 +58,20 @@ class Container {
                     }
                     continue;
                 }
-                if (decorator.name === "Component") {
-                    // TODO
-                    continue;
-                }
                 if (decorator.name === "Controller") {
                     controller = decorator;
                 }
+            }
+
+            const propDecorator: Decorator | undefined = Reflect.getMetadata("property:decorators", constructor);
+            if (propDecorator) {
+                const propVarName = propDecorator.value as string;
+                const propTypeName = propVarName.charAt(0).toUpperCase() + propVarName.slice(1);
+                const propClass: any = this.components.get(propTypeName);
+                if (!propClass) {
+                    throw new HttpError("Class '" + propTypeName + "' undefined");
+                }
+                instance[propVarName] = new propClass();
             }
 
             // Parse decorators on method
