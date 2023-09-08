@@ -1,28 +1,16 @@
-import { Decorator, HttpError, Middleware, Route, RouteHandler } from "./types.ts";
-import { Reflect } from "./deps.ts";
+// deno-lint-ignore-file no-explicit-any
+import { Decorator, HttpError, Route, RouteHandler } from "./types.ts";
 
-/**
- * Spring Runtime Cache
- * Caching instances of decorator constructors
- */
-export class Global {
-    // All the global instances at runtime
-    static plugins: Record<string, unknown> = {};
-    static middlewares: Middleware[] = [];
-    static routes: Route[] = [];
-    static errorHandler?: RouteHandler;
+class Container {
+    errorHandler?: RouteHandler;
+    interceptors: RouteHandler[] = [];
+    routes: Route[] = [];
+    // private components = new Map<string, object>();
 
     // To avoid creating instance repeatedly, use "Set" to automatically deduplicate.
-    // deno-lint-ignore no-explicit-any
-    private static constructors: Set<any> = new Set();
+    private constructors: Set<any> = new Set();
 
-    /**
-     * Append target constructor (called when the decorator is triggered)
-     * @param constructor
-     * @param decorator
-     */
-    // deno-lint-ignore no-explicit-any
-    static append(constructor: any, decorator: Decorator) {
+    register(constructor: any, decorator: Decorator) {
         this.constructors.add(constructor);
 
         // There may be more than one class decorator on single class
@@ -44,34 +32,37 @@ export class Global {
         }
     }
 
-    /**
-     * Resolve all decorators
-     */
-    static compose() {
+    compose() {
         // Get and create instances from each constructor
-        for (const c of this.constructors) {
+        for (const constructor of this.constructors) {
             // New an instance
-            const instance = new c();
+            const instance = new constructor();
 
-            // Parse class decorators
-            const classDecorators: Decorator[] = Reflect.getMetadata("class:decorators", c) || [];
+            // Parse decorators on class
+            const classDecorators: Decorator[] = Reflect.getMetadata("class:decorators", constructor) || [];
             let controller: Decorator | undefined;
 
             for (const decorator of classDecorators) {
-                // Parse plugin decorators (singleton binding, independent of specific methods)
-                if (decorator.name === "Plugin" && decorator.value) {
-                    this.plugins[decorator.value] = instance;
+                if (decorator.name === "Interceptor") {
+                    const members = Object.getOwnPropertyNames(constructor.prototype);
+                    for (const member of members) {
+                        if (member !== "constructor") {
+                            this.interceptors.push(instance[member]);
+                        }
+                    }
                     continue;
                 }
-
-                // Set a temporary controller for later use
+                if (decorator.name === "Component") {
+                    // TODO
+                    continue;
+                }
                 if (decorator.name === "Controller") {
                     controller = decorator;
                 }
             }
 
-            // Parse method decorators
-            const g: Record<string, Decorator[]> = Reflect.getMetadata("method:decorators", c) || {};
+            // Parse decorators on method
+            const g: Record<string, Decorator[]> = Reflect.getMetadata("method:decorators", constructor) || {};
             const group = Object.values(g);
 
             for (const decorators of group) {
@@ -88,18 +79,10 @@ export class Global {
                         continue;
                     }
 
-                    // Parse middleware handlers
-                    if (decorator.name === "Middleware") {
-                        const priority = decorator.value as number;
-                        this.middlewares.push({ handler, priority });
-                        continue;
-                    }
-
                     // Ignore template decorator (but will be used later)
                     if (decorator.name === "View") {
                         continue;
                     }
-
                     // Parse routes such as GET, POST, PUT...
                     if (!controller) {
                         throw new HttpError("The class of route must be annotated with @Controller");
@@ -120,8 +103,7 @@ export class Global {
                 }
             }
         }
-
-        // Sort middlewares by priority
-        this.middlewares.sort((a, b) => a.priority - b.priority);
     }
 }
+
+export const container = new Container();

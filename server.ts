@@ -3,7 +3,7 @@ import { EngineOptions, HttpError, HttpStatus, Method, Mime, RouteHandler, Serve
 import { Context } from "./context.ts";
 import { Engine } from "./engine.ts";
 import { Router } from "./router.ts";
-import { Global } from "./global.ts";
+import { container } from "./container.ts";
 
 /**
  * Web Application Server
@@ -28,6 +28,8 @@ export class Server {
     // Run web server
     run(): Server {
         this.engine.init(this.engineOptions);
+        container.compose();
+        container.routes.forEach((route) => this.router.add(route));
         Deno.serve(this.serverOptions, this.handleRequest.bind(this));
         return this;
     }
@@ -66,17 +68,9 @@ export class Server {
         return this;
     }
 
-    // Initialize app components
-    // private initialize() {
-    //     // Resolve decorators and routes
-    //     Global.compose();
-    //     Global.routes.forEach((route) => this.router.add(route));
-    // }
-
     // Handle request
     private async handleRequest(req: Request, info: Deno.ServeHandlerInfo) {
         const ctx = new Context(req, info, this.engine);
-        Object.assign(ctx, Global.plugins);
         let body = null;
 
         try {
@@ -84,9 +78,9 @@ export class Server {
             if (route) {
                 ctx.route = route;
 
-                // Run middlewares
-                for (const middleware of Global.middlewares) {
-                    await middleware.handler(ctx);
+                // Run interceptors
+                for (const interceptor of container.interceptors) {
+                    await interceptor(ctx);
                 }
                 // Run route handler
                 body = await route.handler(ctx);
@@ -100,8 +94,8 @@ export class Server {
             console.error("\x1b[31m[Spring]", err, "\x1b[0m");
             ctx.status = err.status || HttpStatus.INTERNAL_SERVER_ERROR;
 
-            if (Global.errorHandler) {
-                body = await Global.errorHandler(ctx, err);
+            if (container.errorHandler) {
+                body = await container.errorHandler(ctx, err);
             } else {
                 body = err.message || "Internal Server Error";
             }

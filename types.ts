@@ -42,12 +42,6 @@ export type Route = {
     params?: Record<string, string>;
 };
 
-// Middleware entity
-export type Middleware = {
-    priority: number;
-    handler: RouteHandler;
-};
-
 // Custom http error
 export class HttpError extends Error {
     status: number;
