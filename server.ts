@@ -19,6 +19,7 @@ export class Server {
         onListen: this.onListen.bind(this),
         onError: this.onError.bind(this),
     };
+
     private engineOptions: EngineOptions = {
         viewRoot: "",
         imports: {},
