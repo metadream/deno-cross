@@ -26,7 +26,7 @@ export type EngineOptions = {
 
 // Decorator entity
 export type Decorator = {
-    type: "class" | "method";
+    type: "class" | "method" | "property";
     name: string;
     value?: string | number;
     fn?: string | symbol;
