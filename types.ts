@@ -13,9 +13,7 @@ export type RouteHandler = (
 export type ServerOptions = {
     port?: number;
     hostname?: string;
-    viewRoot?: string;
     assets?: string[];
-    imports?: object;
     onListen?: (params: { hostname: string; port: number }) => void;
     onError?: (error: unknown) => Response | Promise<Response>;
 };
@@ -23,7 +21,7 @@ export type ServerOptions = {
 // Template engine options
 export type EngineOptions = {
     viewRoot: string;
-    imports: Record<string, unknown>;
+    imports: object;
 };
 
 // Decorator entity

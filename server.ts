@@ -1,5 +1,5 @@
 import { extname, resolve } from "./deps.ts";
-import { HttpError, HttpStatus, Method, Mime, RouteHandler, ServerOptions } from "./types.ts";
+import { EngineOptions, HttpError, HttpStatus, Method, Mime, RouteHandler, ServerOptions } from "./types.ts";
 import { Context } from "./context.ts";
 import { Engine } from "./engine.ts";
 import { Router } from "./router.ts";
@@ -13,18 +13,45 @@ export class Server {
     private router = new Router();
     private engine = new Engine();
 
-    private svrOpt: ServerOptions = {
+    private serverOptions: ServerOptions = {
         port: 3000,
         hostname: "0.0.0.0",
-        viewRoot: "",
-        imports: {},
         onListen: this.onListen.bind(this),
         onError: this.onError.bind(this),
+    };
+    private engineOptions: EngineOptions = {
+        viewRoot: "",
+        imports: {},
     };
 
     // Run web server
     run(): Server {
-        Deno.serve(this.svrOpt, this.handleRequest.bind(this));
+        this.engine.init(this.engineOptions);
+        Deno.serve(this.serverOptions, this.handleRequest.bind(this));
+        return this;
+    }
+
+    // Set listen port
+    port(port: number) {
+        this.serverOptions.port = port;
+        return this;
+    }
+
+    // Set listen hostname
+    hostname(hostname: string) {
+        if (hostname) this.serverOptions.hostname = hostname;
+        return this;
+    }
+
+    // Set views root of template engine
+    views(viewRoot: string) {
+        if (viewRoot) this.engineOptions.viewRoot = viewRoot;
+        return this;
+    }
+
+    // Set imports of template engine
+    imports(imports: object) {
+        if (imports) this.engineOptions.imports = imports;
         return this;
     }
 
@@ -35,18 +62,6 @@ export class Server {
                 this.router.add({ method: Method.GET, path, handler: this.handleResource });
             }
         }
-        return this;
-    }
-
-    // Set views root of template engine
-    views(viewRoot: string) {
-        if (viewRoot) this.svrOpt.viewRoot = viewRoot;
-        return this;
-    }
-
-    // Set imports of template engine
-    imports(imports: object) {
-        if (imports) this.svrOpt.imports = imports;
         return this;
     }
 
