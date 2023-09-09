@@ -4,145 +4,154 @@ A compact, high-performance and full-featured web server framework in Deno.
 
 ## Shortcut mode
 
-```ts
-import { app } from "https://deno.land/x/spring/mod.ts";
+Create a `mod.ts` file and write the following content, then run `deno run --allow-all mod.ts`.
 
-app.get("/:user", (ctx) => ctx.params.user);
-app.boot();
+```ts
+import { Bootstrap, Server } from "https://deno.land/x/spring/mod.ts";
+
+@Bootstrap()
+export default class {
+    constructor(app: Server) {
+        app.get("/:id", (ctx) => {
+            return "hello " + ctx.params.id;
+        });
+    }
+}
 ```
 
-Note that features such as plugins, middlewares, template engine and unified
-error handling cannot be used in shortcut mode, you must solve them in other
-ways.
+Note that features such as components, template engine and unified error handling
+ cannot be used in shortcut mode, you must solve them in other ways.
 
 ## Decorator mode
 
-Importing a `ts` file containing any decorators to use its features. Shortcut
-mode and decorator mode do not conflict and can be used together. The only
+Decorator mode and shortcut mode do not conflict and can be used together. The only
 difference in performance between the two is that the latter needs to parse all
-decorators at startup, it is almost the same in runtime.
+decorators at startup, it is almost the same in runtime. Modify the content of `mod.ts`
+ as follows.
 
 ```ts
-// mod.ts
-import app from "https://deno.land/x/spring/mod.ts";
-import "./controllers/MyController.ts"; // DO NOT forget import the controllers
-
-app.boot();
+@Bootstrap()
+export default class {
+    constructor(app: Server) {
+        app.modules(Authenticator, ErrorController, UserController, UserService);
+        app.assets("/assets/*", "/cover/*");
+    }
+}
 ```
 
 ### 1. Controllers
 
 ```ts
-// MyController.ts
-import { Context, Controller, Get } from "https://deno.land/x/spring/mod.ts";
-
+// UserController.ts
 @Controller("/prefix")
-export class MyController {
-  @Get("/:user")
-  getUser(ctx: Context) {
-    return ctx.params.user;
-  }
+export class UserController {
+    @Get("/:id")
+    getUser(ctx: Context) {
+        return ctx.params.id;
+    }
 }
 ```
 
-### 2. Middlewares
+### 2. Interceptor
 
-You can add middleware decorator on any class method, including controllers. The
-role of the middleware parameter is to set the execution priority.
+The interceptor is not required, but if there is one, the methods in it will be executed in order.
 
 ```ts
-// MyMiddleware.ts
-import { Context, Middleware } from "https://deno.land/x/spring/mod.ts";
-
-export class MyMiddleware {
-  @Middleware(2)
-  cors(ctx: Context) {
-    // do something second
-  }
-
-  @Middleware(1)
-  auth(ctx: Context) {
-    // do something first
-  }
+// MyInterceptor.ts
+@Interceptor()
+export class MyInterceptor {
+    cors(ctx: Context) {
+        // do something first
+    }
+    auth(ctx: Context) {
+        // do something second
+    }
 }
 ```
 
-### 3. Plugins
-
-Plugin decorators can only be added to classes, and the parameter is the name
-bound to the context.
+### 3. Component
 
 ```ts
-// MyPlugin.ts
-import { Plugin } from "https://deno.land/x/spring/mod.ts";
-
-@Plugin("redis")
-export class Redis {
-  constructor() {
-    // connect to redis server and create a client
-  }
-  get(key) {
-    // do something
-  }
-  set(key, value) {
-    // do something
-  }
+// UserService.ts
+@Component()
+export class UserService {
+    getUser(id: string) {
+        // do something
+    }
 }
 ```
 
-Then you can use redis object as singleton instance in any controllers with
-`ctx.redis`.
+### 4. Autowired
 
-### 4. View
+Inject service in controller. Note that the property name must be consistent with the class name
+, with the first letter lowercase.
+
+```ts
+// UserController.ts
+@Controller("/prefix")
+export class UserController {
+    @Autowired()
+    userService!: UserService;
+
+    @Get("/:id")
+    getUser(ctx: Context) {
+        return this.userService.getUser(ctx.params.id);
+    }
+}
+```
+
+### 5. View
 
 View decorators are used to decorate controller methods, and its parameter is
 the template file path. After adding it the built-in template engine will be
-used for rendering automatically. The built-in engine syntax see
-[SYNTAX.md](/SYNTAX.md)
+used for rendering automatically. The built-in engine syntax see [SYNTAX.md](/SYNTAX.md)
 
 ```ts
 // mod.ts
-app.boot({  // Engine options, not necessary
-  viewRoot: "./pages",   // The root of template files
-  imports: {  // Global imports for template
-    siteName: "My Blog"
-  }
-});
+@Bootstrap()
+export default class {
+    constructor(app: Server) {
+        app.modules(Authenticator, ErrorController, UserController, UserService);
+        app.assets("/assets/*", "/cover/*");
 
-// controller.ts
-import { Context, Controller, Get, View } from "https://deno.land/x/spring/mod.ts";
+        // Add the following code for template engine
+        app.views("./views");
+        app.imports({ formatDate });
+    }
+}
 
+// UserController.ts
 @Controller("/prefix")
-export class MyController {
-  @Get("/:user")
-  @View("index.html") // or @View("./project/path/index.html") if options not initialized
-  getUser(ctx: Context) {
-    return { name: ctx.params.user };
-  }
+export class UserController {
+    @Autowired()
+    userService!: UserService;
+
+    @Get("/:id")
+    @View("index.html") // or @View("./project/path/index.html") if options not initialized
+    getUser(ctx: Context) {
+        return this.userService.getUser(ctx.params.id);
+    }
 }
 
 // index.html
-<h1>Hello, {{= name }}</h1>
+<h1>Hello, {{= name }} {{= formatDate(birthdate) }}</h1>
 ```
 
-### 5. ErrorHandler
+### 6. ErrorHandler
 
 If an error handler decorator is defined, all errors within the framework will
-be handled by it. Like middleware, you can define it in any class method but
-only once. This decorator has no parameters.
+be handled by it.
 
 ```ts
-// error.ts
-import { Context, ErrorHandler } from "https://deno.land/x/spring/mod.ts";
-
-export class AnyClass {
-  @ErrorHandler()
-  error(ctx: Context, err: Error) {
-    return {
-      status: ctx.status,
-      message: err.message,
-    };
-  }
+// ErrorController.ts
+export class ErrorController {
+    @ErrorHandler()
+    error(ctx: Context, err: Error) {
+        return {
+            status: ctx.status,
+            message: err.message,
+        };
+    }
 }
 ```
 
@@ -150,31 +159,24 @@ export class AnyClass {
 
 ### Bootstrap
 
-To start the web server, you simply write a single line of code `app.boot()`.
-The options as follow:
-
 - `port` HTTP server listening port, default 3000.
 - `hostname` HTTP server hostname, default "0.0.0.0"
-- `viewRoot` The root of template files
-- `imports` Global imports for template
-- `assets` The array of paths of static resources
-- `onListen`
-- `onError`
-
-### Routes
-
-The route methods including `get`,`post`,`put`,`del`,`patch`,`head`,`opt`,
-and all methods have the same parameters.
-
-- `path` Route path.
-- `handler` Request handle function.
+- `views` The root of template files, default ""
+- `imports` Global imports for template, default {}
+- `assets` The paths of static resources
+- `modules` Load classes that need to use decorator in the application
+- `get`, `post`, `put`... Request methods with `(path, handler)` parameters
 
 ### Decorators
 
 | Name          | Type            | Parameters | Parameter description         |
 | ------------- | --------------- | ---------- | ----------------------------- |
+| @Bootstrap    | ClassDecorator  |            | Application startup class     |
 | @Controller   | ClassDecorator  | string     | Prefix for request route      |
-| @Plugin       | ClassDecorator  | string     | Plugin name with context      |
+| @Component    | ClassDecorator  |            | Define a component            |
+| @Interceptor   | ClassDecorator |            | Define a interceptor          |
+| @ErrorHandler | MethodDecorator |            |                               |
+| @Autowired    | PropertyDecorator |          | Inject components             |
 | @Get          | MethodDecorator | string     | Route path                    |
 | @Post         | MethodDecorator | string     | Route path                    |
 | @Put          | MethodDecorator | string     | Route path                    |
@@ -183,12 +185,10 @@ and all methods have the same parameters.
 | @Head         | MethodDecorator | string     | Route path                    |
 | @Options      | MethodDecorator | string     | Route path                    |
 | @View         | MethodDecorator | string     | Template file path            |
-| @Middleware   | MethodDecorator | number     | Middleware execution priority |
-| @ErrorHandler | MethodDecorator | undefined  |                               |
 
 ### Context
 
-Context is an instance passed to controllers, middlewares and error handler, it
+Context is an instance passed to controllers, Interceptors and error handler, it
 contains properties and methods related to requests and responses.
 
 #### Request Properties
