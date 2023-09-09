@@ -1,13 +1,11 @@
 import { Method } from "./types.ts";
-import { Server } from "./server.ts";
 import { container } from "./container.ts";
 
 export function Bootstrap(): ClassDecorator {
-    // deno-lint-ignore no-explicit-any
-    return (Application: any) => {
-        const server = new Server();
-        new Application(server);
-        server.run();
+    return (constructor) => {
+        container.register(constructor, {
+            name: "Bootstrap",
+        });
     };
 }
 

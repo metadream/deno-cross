@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { Reflect } from "./deps.ts";
 import { Decorator, Route, RouteHandler } from "./types.ts";
+import { Server } from "./server.ts";
 const camelCase = (v: string) => v.charAt(0).toLowerCase() + v.slice(1);
 
 export const container = new class Container {
@@ -10,15 +11,21 @@ export const container = new class Container {
 
     private singletons: Set<any> = new Set();
     private components = new Map<string, any>();
+    private server = new Server();
 
     // Register decorators
     register(target: any, decorator: Decorator) {
-        target.instance = target.instance || new target();
-        this.singletons.add(target);
-
         const decorators: Decorator[] = Reflect.getMetadata("spring:decorators", target) || [];
         decorators.push(decorator);
         Reflect.defineMetadata("spring:decorators", decorators, target);
+        this.singletons.add(target);
+
+        if (decorator.name === "Bootstrap") {
+            target.instance = target.instance || new target(this.server);
+            this.server.run();
+        } else {
+            target.instance = target.instance || new target();
+        }
 
         if (decorator.name === "Component") {
             const key = camelCase(decorator.value || target.name);
@@ -63,6 +70,7 @@ export const container = new class Container {
                         "', the property name must be consistent with the component parameter.";
                 }
                 target.instance[decorator.value] = object.instance;
+                this.server.module[decorator.value] = object.instance;
                 continue;
             }
 
