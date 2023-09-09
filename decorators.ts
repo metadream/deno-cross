@@ -14,7 +14,6 @@ export function Bootstrap(): ClassDecorator {
 export function Interceptor(): ClassDecorator {
     return (constructor) => {
         container.register(constructor, {
-            type: "class",
             name: "Interceptor",
         });
     };
@@ -23,9 +22,7 @@ export function Interceptor(): ClassDecorator {
 export function Component(): ClassDecorator {
     return (constructor) => {
         container.register(constructor, {
-            type: "class",
             name: "Component",
-            value: constructor.name,
         });
     };
 }
@@ -33,7 +30,6 @@ export function Component(): ClassDecorator {
 export function Controller(prefix?: string): ClassDecorator {
     return (constructor) => {
         container.register(constructor, {
-            type: "class",
             name: "Controller",
             value: prefix,
         });
@@ -43,7 +39,6 @@ export function Controller(prefix?: string): ClassDecorator {
 export function Autowired(): PropertyDecorator {
     return (target, name) => {
         container.register(target.constructor, {
-            type: "property",
             name: "Autowired",
             value: name as string,
         });
@@ -53,7 +48,6 @@ export function Autowired(): PropertyDecorator {
 export function ErrorHandler(): MethodDecorator {
     return (target, name) => {
         container.register(target.constructor, {
-            type: "method",
             name: "ErrorHandler",
             fn: name,
         });
@@ -63,7 +57,6 @@ export function ErrorHandler(): MethodDecorator {
 export function View(path: string): MethodDecorator {
     return (target, name) => {
         container.register(target.constructor, {
-            type: "method",
             name: "View",
             value: path,
             fn: name,
@@ -74,7 +67,6 @@ export function View(path: string): MethodDecorator {
 const Request = (method: string) => (path: string): MethodDecorator => {
     return (target, name) => {
         container.register(target.constructor, {
-            type: "method",
             name: method,
             value: path,
             fn: name,

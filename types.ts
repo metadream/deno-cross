@@ -1,13 +1,8 @@
+// deno-lint-ignore-file no-explicit-any
 import { Context } from "./context.ts";
 
 // Template engine compiled function
 export type Renderer = (data: unknown) => string;
-
-// Route callback function in the controller
-export type RouteHandler = (
-    ctx: Context,
-    err?: Error,
-) => void | BodyInit | Response | null | undefined | Promise<BodyInit | Response | null | undefined>;
 
 // App server options
 export type ServerOptions = {
@@ -26,11 +21,22 @@ export type EngineOptions = {
 
 // Decorator entity
 export type Decorator = {
-    type: "class" | "method" | "property";
     name: string;
-    value?: string | number;
+    value?: string;
     fn?: string | symbol;
 };
+
+export type Singleton = {
+    constructor: any;
+    instance: any;
+    decorators: Decorator[];
+};
+
+// Route callback function in the controller
+export type RouteHandler = (
+    ctx: Context,
+    err?: Error,
+) => void | BodyInit | Response | null | undefined | Promise<BodyInit | Response | null | undefined>;
 
 // Route entity
 export type Route = {

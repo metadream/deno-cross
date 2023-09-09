@@ -65,6 +65,7 @@ export class Server {
         return this;
     }
 
+    // Inject modules
     modules(...modules: object[]) {
         for (const module of modules) {
             container.inject(module);
