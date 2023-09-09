@@ -26,12 +26,6 @@ export type Decorator = {
     fn?: string | symbol;
 };
 
-export type Singleton = {
-    constructor: any;
-    instance: any;
-    decorators: Decorator[];
-};
-
 // Route callback function in the controller
 export type RouteHandler = (
     ctx: Context,
