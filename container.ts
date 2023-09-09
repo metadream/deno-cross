@@ -59,7 +59,8 @@ export const container = new class Container {
             if (decorator.name === "Autowired" && decorator.value) {
                 const object: any = this.components.get(decorator.value);
                 if (!object) {
-                    throw "Undefined module '" + decorator.value + "', the class may not be annotated.";
+                    throw "Undefined property '" + decorator.value +
+                        "', the property name must be consistent with the component parameter.";
                 }
                 target.instance[decorator.value] = object.instance;
                 continue;
