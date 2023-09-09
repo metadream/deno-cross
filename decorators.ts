@@ -19,10 +19,11 @@ export function Interceptor(): ClassDecorator {
     };
 }
 
-export function Component(): ClassDecorator {
+export function Component(alias?: string): ClassDecorator {
     return (constructor) => {
         container.register(constructor, {
             name: "Component",
+            value: alias,
         });
     };
 }
