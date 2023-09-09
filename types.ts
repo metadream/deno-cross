@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 import { Context } from "./context.ts";
 
 // Template engine compiled function
