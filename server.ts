@@ -27,7 +27,6 @@ export class Server {
 
     // Run web server
     run(): Server {
-        container.compose();
         container.routes.forEach((route) => this.router.add(route));
         this.engine.init(this.engineOptions);
         Deno.serve(this.serverOptions, this.handleRequest.bind(this));
@@ -60,12 +59,16 @@ export class Server {
 
     // Set static resources paths
     assets(...assets: string[]) {
-        if (assets && assets.length) {
-            for (const path of assets) {
-                this.router.add({ method: Method.GET, path, handler: this.handleResource });
-            }
+        for (const path of assets) {
+            this.router.add({ method: Method.GET, path, handler: this.handleResource });
         }
         return this;
+    }
+
+    modules(...modules: object[]) {
+        for (const module of modules) {
+            container.inject(module);
+        }
     }
 
     // Handle request
