@@ -4,7 +4,7 @@ const camelCase = (v: string) => v.charAt(0).toLowerCase() + v.slice(1);
 
 export function Bootstrap(): ClassDecorator {
     return (constructor) => {
-        container.register(constructor, { type: "class", name: ":Bootstrap" });
+        container.register(constructor, { type: "app", name: ":Bootstrap" });
     };
 }
 

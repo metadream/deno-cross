@@ -13,7 +13,7 @@ export const container = new class Container {
 
     // Register decorators
     register(target: any, decorator: Decorator) {
-        if (decorator.name === ":Bootstrap") {
+        if (decorator.type === "app") {
             target.instance = target.instance || new target(this.server);
             this.server.run();
         } else {
