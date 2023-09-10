@@ -2,7 +2,6 @@
 import { Reflect } from "./deps.ts";
 import { Decorator, Route, RouteHandler } from "./types.ts";
 import { Server } from "./server.ts";
-const camelCase = (v: string) => v.charAt(0).toLowerCase() + v.slice(1);
 
 export const container = new class Container {
     errorHandler?: RouteHandler;
@@ -10,92 +9,94 @@ export const container = new class Container {
     routes: Route[] = [];
 
     private singletons: Set<any> = new Set();
-    private components = new Map<string, any>();
     private server = new Server();
 
     // Register decorators
     register(target: any, decorator: Decorator) {
-        const decorators: Decorator[] = Reflect.getMetadata("spring:decorators", target) || [];
-        decorators.push(decorator);
-        Reflect.defineMetadata("spring:decorators", decorators, target);
-        this.singletons.add(target);
-
-        if (decorator.name === "Bootstrap") {
+        if (decorator.name === ":Bootstrap") {
             target.instance = target.instance || new target(this.server);
             this.server.run();
         } else {
-            target.instance = target.instance || new target();
-        }
-
-        if (decorator.name === "Component") {
-            const key = camelCase(decorator.value || target.name);
-            if (!this.components.has(key)) {
-                this.components.set(key, target);
+            if (decorator.type === "class") {
+                target.instance = target.instance || new target();
             }
+            this.defineMetadata(target, decorator);
+            this.singletons.add(target);
         }
     }
 
     // Inject modules
     inject(target: any) {
-        const exists = this.singletons.has(target);
-        if (!exists) {
-            throw "Undefined module '" + target.name + "', the class may not be annotated.";
+        const found = this.singletons.has(target);
+        if (!found) throw "The module '" + target.name + "' may not be registered.";
+
+        const interceptor = this.getMetadata(target, "class:Interceptor")[0];
+        const component = this.getMetadata(target, "class:Component")[0];
+        const controller = this.getMetadata(target, "class:Controller")[0];
+        const errorHandler = this.getMetadata(target, "method:ErrorHandler")[0];
+        const requests = this.getMetadata(target, "method:Request");
+        const views = this.getMetadata(target, "method:View");
+        const properties = this.getMetadata(target, "property:Autowired");
+
+        // Extract all methods of the interceptor
+        if (interceptor) {
+            const members = Object.getOwnPropertyNames(target.prototype);
+            for (const member of members) {
+                if (member !== "constructor") {
+                    this.interceptors.push(target.instance[member]);
+                }
+            }
+            return;
         }
 
-        let prefix = "";
-        const decorators: Decorator[] = Reflect.getMetadata("spring:decorators", target) || [];
-
-        for (const decorator of decorators) {
-            // Ignores
-            if (decorator.name === "View" || decorator.name === "Component") {
-                continue;
-            }
-
-            // Get all methods of Interceptor class
-            if (decorator.name === "Interceptor") {
-                const members = Object.getOwnPropertyNames(target.prototype);
-                for (const member of members) {
-                    if (member !== "constructor") {
-                        this.interceptors.push(target.instance[member]);
-                    }
-                }
-                continue;
-            }
-
-            // Initialize property of Autowired
-            if (decorator.name === "Autowired" && decorator.value) {
-                const object: any = this.components.get(decorator.value);
-                if (!object) {
-                    throw "Undefined property '" + decorator.value +
-                        "', the property name must be consistent with the component parameter.";
-                }
-                target.instance[decorator.value] = object.instance;
-                this.server.module[decorator.value] = object.instance;
-                continue;
-            }
-
-            // Parse root of route
-            if (decorator.name === "Controller") {
-                prefix = decorator.value || "";
-                continue;
-            }
-
-            // Parse routes and error handler
-            if (decorator.fn) {
-                const handler = target.instance[decorator.fn].bind(target.instance);
-                if (decorator.name === "ErrorHandler") {
-                    if (this.errorHandler) {
-                        throw "Duplicated error handler.";
-                    }
-                    this.errorHandler = handler;
-                    continue;
-                }
-
-                const path = ("/" + prefix + decorator.value || "").replace(/[\/]+/g, "/");
-                const view = decorators.find((v) => v.name === "View" && v.fn === decorator.fn);
-                const template = view ? view.value : undefined;
-                this.routes.push({ method: decorator.name, path, handler, template });
-            }
+        if (errorHandler) {
+            if (!component) throw "The module of '" + target.name + "' must be decorated.";
+            if (!errorHandler.relname) throw "@ErrorHandler decorator must be added to a method.";
+            this.errorHandler = target.instance[errorHandler.relname].bind(target.instance);
         }
+
+        // Inject member properties
+        for (const prop of properties) {
+            if (!component && !controller) throw "The module of '" + target.name + "' must be decorated.";
+            if (!prop.relname) throw "@Autowired decorator must be added to a property.";
+
+            const relname = prop.relname as string;
+            const _component: any = this.findComponent(relname);
+            if (!_component) throw "Undefined component '" + relname + "' in '" + target.name + "'.";
+
+            target.instance[relname] = _component.instance;
+            this.server.module[relname] = _component.instance;
+        }
+
+        // Parse request routes
+        for (const req of requests) {
+            if (!controller) throw "The module '" + target.name + "' must be decorated with @Controller.";
+            if (!req.relname) throw "Request decorators must be added to a method.";
+            if (!req.value) throw "Request decorator must have a value.";
+
+            const handler = target.instance[req.relname].bind(target.instance);
+            const path = ("/" + controller.param + req.param).replace(/[\/]+/g, "/");
+            const view = views.find((v) => v.relname === req.relname);
+            const template = view ? view.param : undefined;
+            this.routes.push({ method: req.value, path, handler, template });
+        }
+    }
+
+    private findComponent(alias: string) {
+        for (const singleton of this.singletons) {
+            const decorator = this.getMetadata(singleton, "class:Component")[0];
+            if (decorator && decorator.param === alias) return singleton;
+        }
+    }
+
+    private defineMetadata(target: any, decorator: Decorator): void {
+        const key = decorator.type + decorator.name;
+        const decorators: Decorator[] = Reflect.getMetadata(key, target) || [];
+        decorators.push(decorator);
+        Reflect.defineMetadata(key, decorators, target);
+    }
+
+    private getMetadata(target: any, key: string): Decorator[] {
+        return Reflect.getMetadata(key, target) || [];
     }
 }();
