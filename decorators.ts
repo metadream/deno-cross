@@ -4,45 +4,70 @@ const camelCase = (v: string) => v.charAt(0).toLowerCase() + v.slice(1);
 
 export function Bootstrap(): ClassDecorator {
     return (constructor) => {
-        container.register(constructor, { type: "app", name: ":Bootstrap" });
+        container.register(constructor, {
+            type: "app",
+            name: ":Bootstrap",
+        });
     };
 }
 
 export function Interceptor(): ClassDecorator {
     return (constructor) => {
-        container.register(constructor, { type: "class", name: ":Interceptor" });
+        container.register(constructor, {
+            type: "class",
+            name: ":Interceptor",
+        });
     };
 }
 
 export function Component(alias?: string): ClassDecorator {
     return (constructor) => {
-        const param = camelCase(alias || constructor.name);
-        container.register(constructor, { type: "class", name: ":Component", param });
+        container.register(constructor, {
+            type: "class",
+            name: ":Component",
+            param: camelCase(alias || constructor.name),
+        });
     };
 }
 
 export function Controller(prefix?: string): ClassDecorator {
     return (constructor) => {
-        const param = prefix || "";
-        container.register(constructor, { type: "class", name: ":Controller", param });
+        container.register(constructor, {
+            type: "class",
+            name: ":Controller",
+            param: prefix || "",
+        });
     };
 }
 
 export function Autowired(): PropertyDecorator {
     return (target, relname) => {
-        container.register(target.constructor, { type: "property", name: ":Autowired", relname });
+        container.register(target.constructor, {
+            type: "property",
+            name: ":Autowired",
+            relname,
+        });
     };
 }
 
 export function ErrorHandler(): MethodDecorator {
     return (target, relname) => {
-        container.register(target.constructor, { type: "method", name: ":ErrorHandler", relname });
+        container.register(target.constructor, {
+            type: "method",
+            name: ":ErrorHandler",
+            relname,
+        });
     };
 }
 
 export function View(path: string): MethodDecorator {
     return (target, relname) => {
-        container.register(target.constructor, { type: "method", name: ":View", param: path, relname });
+        container.register(target.constructor, {
+            type: "method",
+            name: ":View",
+            param: path,
+            relname,
+        });
     };
 }
 
