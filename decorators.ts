@@ -40,36 +40,37 @@ export function Autowired(target: any, relname: string) {
     container.register(target.constructor, {
         name: "@Autowired",
         relname,
+        classType: Reflect.getMetadata("design:type", target, relname),
     });
 }
 
 // MethodDecorator
-export function ErrorHandler(target: any, relname: string) {
+export function ErrorHandler(target: any, _, desc: any) {
     container.register(target.constructor, {
         name: "@ErrorHandler",
-        relname,
+        fn: desc.value,
     });
 }
 
 // MethodDecorator(path)
 export function View(path: string): MethodDecorator {
-    return (target, relname) => {
+    return (target, _, desc: any) => {
         container.register(target.constructor, {
             name: "@View",
             param: path,
-            relname,
+            fn: desc.value,
         });
     };
 }
 
 // MethodDecorator(path)
 const Request = (method: string) => (path: string): MethodDecorator => {
-    return (target, relname) => {
+    return (target, _, desc: any) => {
         container.register(target.constructor, {
             name: "@Request",
             value: method,
             param: path,
-            relname,
+            fn: desc.value,
         });
     };
 };

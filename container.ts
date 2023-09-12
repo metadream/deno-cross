@@ -57,8 +57,8 @@ export const container = new class Container {
 
         if (errorHandler) {
             if (!component) throw "The module of '" + target.name + "' must be decorated.";
-            if (!errorHandler.relname) throw "@ErrorHandler decorator must be added to a method.";
-            this.errorHandler = target.instance[errorHandler.relname].bind(target.instance);
+            if (!errorHandler.fn) throw "@ErrorHandler decorator must be added to a method.";
+            this.errorHandler = errorHandler.fn;
         }
 
         // Inject member properties
@@ -77,12 +77,12 @@ export const container = new class Container {
         // Parse request routes
         for (const req of requests) {
             if (!controller) throw "The module '" + target.name + "' must be decorated with @Controller.";
-            if (!req.relname) throw "Request decorators must be added to a method.";
+            if (!req.fn) throw "Request decorator must be added to a method.";
             if (!req.value) throw "Request decorator must have a value.";
 
-            const handler = target.instance[req.relname].bind(target.instance);
+            const handler = req.fn.bind(target.instance);
             const path = ("/" + controller.param + req.param).replace(/[\/]+/g, "/");
-            const view = views.find((v) => v.relname === req.relname);
+            const view = views.find((v) => v.fn === req.fn);
             const template = view ? view.param : undefined;
             this.routes.push({ method: req.value, path, handler, template });
         }

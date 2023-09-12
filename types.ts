@@ -24,6 +24,7 @@ export type Decorator = {
     param?: string;
     relname?: string | symbol;
     value?: string;
+    fn?: RouteHandler;
 };
 
 // Route callback function in the controller
