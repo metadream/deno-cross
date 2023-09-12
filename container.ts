@@ -13,13 +13,11 @@ export const container = new class Container {
 
     // Register decorators
     register(target: any, decorator: Decorator) {
-        if (decorator.type === "app") {
+        if (decorator.name === "@Bootstrap") {
             target.instance = target.instance || new target(this.server);
             this.server.run();
         } else {
-            if (decorator.type === "class") {
-                target.instance = target.instance || new target();
-            }
+            target.instance = target.instance || new target();
             this.defineMetadata(target, decorator);
             this.singletons.add(target);
         }
@@ -30,13 +28,13 @@ export const container = new class Container {
         const found = this.singletons.has(target);
         if (!found) throw "The module '" + target.name + "' may not be registered.";
 
-        const interceptor = this.getMetadata(target, "class:Interceptor")[0];
-        const component = this.getMetadata(target, "class:Component")[0];
-        const controller = this.getMetadata(target, "class:Controller")[0];
-        const errorHandler = this.getMetadata(target, "method:ErrorHandler")[0];
-        const requests = this.getMetadata(target, "method:Request");
-        const views = this.getMetadata(target, "method:View");
-        const properties = this.getMetadata(target, "property:Autowired");
+        const interceptor = this.getMetadata(target, "@Interceptor")[0];
+        const component = this.getMetadata(target, "@Component")[0];
+        const controller = this.getMetadata(target, "@Controller")[0];
+        const errorHandler = this.getMetadata(target, "@ErrorHandler")[0];
+        const requests = this.getMetadata(target, "@Request");
+        const views = this.getMetadata(target, "@View");
+        const properties = this.getMetadata(target, "@Autowired");
 
         // Extract all methods of the interceptor
         if (interceptor) {
@@ -84,13 +82,13 @@ export const container = new class Container {
 
     private findComponent(alias: string) {
         for (const singleton of this.singletons) {
-            const decorator = this.getMetadata(singleton, "class:Component")[0];
+            const decorator = this.getMetadata(singleton, "@Component")[0];
             if (decorator && decorator.param === alias) return singleton;
         }
     }
 
     private defineMetadata(target: any, decorator: Decorator): void {
-        const key = decorator.type + decorator.name;
+        const key = decorator.name;
         const decorators: Decorator[] = Reflect.getMetadata(key, target) || [];
         decorators.push(decorator);
         Reflect.defineMetadata(key, decorators, target);

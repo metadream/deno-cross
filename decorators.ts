@@ -1,70 +1,58 @@
+// deno-lint-ignore-file no-explicit-any
 import { Method } from "./types.ts";
 import { container } from "./container.ts";
 const camelCase = (v: string) => v.charAt(0).toLowerCase() + v.slice(1);
 
-export function Bootstrap(): ClassDecorator {
-    return (constructor) => {
-        container.register(constructor, {
-            type: "app",
-            name: ":Bootstrap",
-        });
-    };
+// ClassDecorator
+export function Bootstrap(target: any) {
+    container.register(target, {
+        name: "@Bootstrap",
+    });
 }
 
-export function Interceptor(): ClassDecorator {
-    return (constructor) => {
-        container.register(constructor, {
-            type: "class",
-            name: ":Interceptor",
-        });
-    };
+// ClassDecorator
+export function Interceptor(target: any) {
+    container.register(target, {
+        name: "@Interceptor",
+    });
 }
 
-export function Component(alias?: string): ClassDecorator {
-    return (constructor) => {
-        container.register(constructor, {
-            type: "class",
-            name: ":Component",
-            param: camelCase(alias || constructor.name),
-        });
-    };
+// ClassDecorator
+export function Component(target: any) {
+    container.register(target, {
+        name: "@Component",
+        param: camelCase(target.name),
+    });
 }
 
 export function Controller(prefix?: string): ClassDecorator {
     return (constructor) => {
         container.register(constructor, {
-            type: "class",
-            name: ":Controller",
+            name: "@Controller",
             param: prefix || "",
         });
     };
 }
 
-export function Autowired(): PropertyDecorator {
-    return (target, relname) => {
-        container.register(target.constructor, {
-            type: "property",
-            name: ":Autowired",
-            relname,
-        });
-    };
+// PropertyDecorator
+export function Autowired(target, relname) {
+    container.register(target.constructor, {
+        name: "@Autowired",
+        relname,
+    });
 }
 
-export function ErrorHandler(): MethodDecorator {
-    return (target, relname) => {
-        container.register(target.constructor, {
-            type: "method",
-            name: ":ErrorHandler",
-            relname,
-        });
-    };
+export function ErrorHandler(target, relname) {
+    container.register(target.constructor, {
+        name: "@ErrorHandler",
+        relname,
+    });
 }
 
 export function View(path: string): MethodDecorator {
     return (target, relname) => {
         container.register(target.constructor, {
-            type: "method",
-            name: ":View",
+            name: "@View",
             param: path,
             relname,
         });
@@ -74,8 +62,7 @@ export function View(path: string): MethodDecorator {
 const Request = (method: string) => (path: string): MethodDecorator => {
     return (target, relname) => {
         container.register(target.constructor, {
-            type: "method",
-            name: ":Request",
+            name: "@Request",
             value: method,
             param: path,
             relname,

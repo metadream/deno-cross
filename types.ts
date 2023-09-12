@@ -20,7 +20,6 @@ export type EngineOptions = {
 
 // Decorator entity
 export type Decorator = {
-    type: string;
     name: string;
     param?: string;
     relname?: string | symbol;
