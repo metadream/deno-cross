@@ -14,13 +14,21 @@ export const container = new class Container {
     // Register decorators
     register(target: any, decorator: Decorator) {
         if (decorator.name === "@Bootstrap") {
-            target.instance = target.instance || new target(this.server);
-            this.server.run();
+            new target(this.server);
+            return this.server.run();
+        }
+
+        // If there are parameters, use them to create the instance
+        const paramTypes = Reflect.getMetadata("design:paramtypes", target) as any[];
+        if (paramTypes) {
+            const params = paramTypes.map((v) => v.instance);
+            target.instance = target.instance || new target(...params);
         } else {
             target.instance = target.instance || new target();
-            this.defineMetadata(target, decorator);
-            this.singletons.add(target);
         }
+
+        this.defineMetadata(target, decorator);
+        this.singletons.add(target);
     }
 
     // Inject modules
