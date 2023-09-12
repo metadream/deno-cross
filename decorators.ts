@@ -1,7 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { Method } from "./types.ts";
 import { container } from "./container.ts";
-const camelCase = (v: string) => v.charAt(0).toLowerCase() + v.slice(1);
 
 // ClassDecorator
 export function Bootstrap(target: any) {
@@ -21,7 +20,6 @@ export function Interceptor(target: any) {
 export function Component(target: any) {
     container.register(target, {
         name: "@Component",
-        param: camelCase(target.name),
     });
 }
 

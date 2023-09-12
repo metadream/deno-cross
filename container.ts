@@ -63,15 +63,15 @@ export const container = new class Container {
 
         // Inject member properties
         for (const prop of properties) {
-            if (!component && !controller) throw "The module of '" + target.name + "' must be decorated.";
-            if (!prop.relname) throw "@Autowired decorator must be added to a property.";
-
             const relname = prop.relname as string;
-            const _component: any = this.findComponent(relname);
-            if (!_component) throw "Undefined component '" + relname + "' in '" + target.name + "'.";
+            const type = prop.classType;
+            if (!component && !controller) throw "The module of '" + target.name + "' must be decorated.";
+            if (!relname) throw "@Autowired decorator must be added to a property.";
+            if (!type) throw "@Autowired decorator must declare a type.";
+            if (!this.singletons.has(type)) throw "Undefined module '" + relname + "' in '" + target.name + "'.";
 
-            target.instance[relname] = _component.instance;
-            this.server.module[relname] = _component.instance;
+            target.instance[relname] = type.instance;
+            this.server.module[relname] = type.instance;
         }
 
         // Parse request routes
@@ -85,13 +85,6 @@ export const container = new class Container {
             const view = views.find((v) => v.fn === req.fn);
             const template = view ? view.param : undefined;
             this.routes.push({ method: req.value, path, handler, template });
-        }
-    }
-
-    private findComponent(alias: string) {
-        for (const singleton of this.singletons) {
-            const decorator = this.getMetadata(singleton, "@Component")[0];
-            if (decorator && decorator.param === alias) return singleton;
         }
     }
 
