@@ -25,6 +25,7 @@ export function Component(target: any) {
     });
 }
 
+// ClassDecorator(prefix)
 export function Controller(prefix?: string): ClassDecorator {
     return (constructor) => {
         container.register(constructor, {
@@ -42,6 +43,7 @@ export function Autowired(target: any, relname: string) {
     });
 }
 
+// MethodDecorator
 export function ErrorHandler(target: any, relname: string) {
     container.register(target.constructor, {
         name: "@ErrorHandler",
@@ -49,6 +51,7 @@ export function ErrorHandler(target: any, relname: string) {
     });
 }
 
+// MethodDecorator(path)
 export function View(path: string): MethodDecorator {
     return (target, relname) => {
         container.register(target.constructor, {
@@ -59,6 +62,7 @@ export function View(path: string): MethodDecorator {
     };
 }
 
+// MethodDecorator(path)
 const Request = (method: string) => (path: string): MethodDecorator => {
     return (target, relname) => {
         container.register(target.constructor, {
