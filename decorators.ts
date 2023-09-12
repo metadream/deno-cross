@@ -35,14 +35,14 @@ export function Controller(prefix?: string): ClassDecorator {
 }
 
 // PropertyDecorator
-export function Autowired(target, relname) {
+export function Autowired(target: any, relname: string) {
     container.register(target.constructor, {
         name: "@Autowired",
         relname,
     });
 }
 
-export function ErrorHandler(target, relname) {
+export function ErrorHandler(target: any, relname: string) {
     container.register(target.constructor, {
         name: "@ErrorHandler",
         relname,
