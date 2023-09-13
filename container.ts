@@ -8,17 +8,19 @@ export const container = new class Container {
     interceptors: RouteHandler[] = [];
     routes: Route[] = [];
 
-    private singletons: Set<any> = new Set();
+    private modules: Set<any> = new Set();
     private server = new Server();
 
     // Register decorators
     register(target: any, decorator: Decorator) {
+        // Start the application and trigger all decorators
         if (decorator.name === "@Bootstrap") {
             new target(this.server);
             return this.server.run();
         }
 
         // If there are parameters, use them to create the instance
+        // Otherwise create it by the default constructor
         const paramTypes = Reflect.getMetadata("design:paramtypes", target) as any[];
         if (paramTypes) {
             const params = paramTypes.map((v) => v.instance);
@@ -27,13 +29,15 @@ export const container = new class Container {
             target.instance = target.instance || new target();
         }
 
+        // Define metadata to target
+        // and add target to modules
         this.defineMetadata(target, decorator);
-        this.singletons.add(target);
+        this.modules.add(target);
     }
 
-    // Inject modules
+    // Inject module
     inject(target: any) {
-        const found = this.singletons.has(target);
+        const found = this.modules.has(target);
         if (!found) throw "The module '" + target.name + "' may not be registered.";
 
         const interceptor = this.getMetadata(target, "@Interceptor")[0];
@@ -55,39 +59,39 @@ export const container = new class Container {
             return;
         }
 
+        // Set error handler
         if (errorHandler) {
             if (!component) throw "The module of '" + target.name + "' must be decorated.";
             if (!errorHandler.fn) throw "@ErrorHandler decorator must be added to a method.";
             this.errorHandler = errorHandler.fn;
         }
 
-        // Inject member properties
+        // Inject autowired properties
         for (const prop of properties) {
             const relname = prop.relname as string;
-            const type = prop.classType;
+            const reltype = prop.reltype;
             if (!component && !controller) throw "The module of '" + target.name + "' must be decorated.";
             if (!relname) throw "@Autowired decorator must be added to a property.";
-            if (!type) throw "@Autowired decorator must declare a type.";
-            if (!this.singletons.has(type)) throw "Undefined module '" + relname + "' in '" + target.name + "'.";
-
-            target.instance[relname] = type.instance;
-            this.server.module[relname] = type.instance;
+            if (!reltype) throw "@Autowired decorator must declare a type.";
+            if (!this.modules.has(reltype)) throw "Undefined module '" + relname + "' in '" + target.name + "'.";
+            target.instance[relname] = reltype.instance;
         }
 
         // Parse request routes
         for (const req of requests) {
             if (!controller) throw "The module '" + target.name + "' must be decorated with @Controller.";
             if (!req.fn) throw "Request decorator must be added to a method.";
-            if (!req.value) throw "Request decorator must have a value.";
+            if (!req.method) throw "Request decorator must have a method name.";
 
             const handler = req.fn.bind(target.instance);
             const path = ("/" + controller.param + req.param).replace(/[\/]+/g, "/");
             const view = views.find((v) => v.fn === req.fn);
             const template = view ? view.param : undefined;
-            this.routes.push({ method: req.value, path, handler, template });
+            this.routes.push({ method: req.method, path, handler, template });
         }
     }
 
+    // Define multiple metadata on the same target
     private defineMetadata(target: any, decorator: Decorator): void {
         const key = decorator.name;
         const decorators: Decorator[] = Reflect.getMetadata(key, target) || [];
@@ -95,6 +99,7 @@ export const container = new class Container {
         Reflect.defineMetadata(key, decorators, target);
     }
 
+    // Get metadata by key
     private getMetadata(target: any, key: string): Decorator[] {
         return Reflect.getMetadata(key, target) || [];
     }

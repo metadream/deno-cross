@@ -22,9 +22,11 @@ export type EngineOptions = {
 export type Decorator = {
     name: string;
     param?: string;
-    relname?: string | symbol;
-    value?: string;
+    method?: string;
     fn?: RouteHandler;
+    relname?: string | symbol;
+    // deno-lint-ignore no-explicit-any
+    reltype?: any;
 };
 
 // Route callback function in the controller

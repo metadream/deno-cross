@@ -10,8 +10,6 @@ import { container } from "./container.ts";
  * to handle requests and static resources
  */
 export class Server {
-    // deno-lint-ignore no-explicit-any
-    module: any = {};
     private router = new Router();
     private engine = new Engine();
 

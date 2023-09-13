@@ -37,13 +37,13 @@ export function Controller(prefix?: string): ClassDecorator {
 export function Autowired(target: any, relname: string) {
     container.register(target.constructor, {
         name: "@Autowired",
+        reltype: Reflect.getMetadata("design:type", target, relname),
         relname,
-        classType: Reflect.getMetadata("design:type", target, relname),
     });
 }
 
 // MethodDecorator
-export function ErrorHandler(target: any, _, desc: any) {
+export function ErrorHandler(target: any, _relname: string, desc: any) {
     container.register(target.constructor, {
         name: "@ErrorHandler",
         fn: desc.value,
@@ -52,7 +52,7 @@ export function ErrorHandler(target: any, _, desc: any) {
 
 // MethodDecorator(path)
 export function View(path: string): MethodDecorator {
-    return (target, _, desc: any) => {
+    return (target, _relname, desc: any) => {
         container.register(target.constructor, {
             name: "@View",
             param: path,
@@ -63,12 +63,12 @@ export function View(path: string): MethodDecorator {
 
 // MethodDecorator(path)
 const Request = (method: string) => (path: string): MethodDecorator => {
-    return (target, _, desc: any) => {
+    return (target, _relname, desc: any) => {
         container.register(target.constructor, {
             name: "@Request",
-            value: method,
             param: path,
             fn: desc.value,
+            method,
         });
     };
 };
