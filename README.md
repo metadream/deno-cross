@@ -28,8 +28,9 @@ Decorator mode and shortcut mode do not conflict and can be used together. The o
 difference in performance between the two is that the latter needs to parse all
 decorators at startup, it is almost the same in runtime.
 
-In decorator mode, you must first create a configuration file named `deno.jsonc` with
- the following content:
+In decorator mode, you must first create a configuration file named "deno.jsonc"
+ in the project root with the following content:
+
 ```
 {
     "compilerOptions": {
