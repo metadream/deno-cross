@@ -83,13 +83,17 @@ export class Server {
                 ctx.route = route;
 
                 // Run interceptors
+                let intercepted = false;
                 for (const interceptor of container.interceptors) {
-                    await interceptor(ctx);
+                    intercepted = await interceptor(ctx);
+                    if (intercepted) break;
                 }
                 // Run route handler
-                body = await route.handler(ctx);
-                if (route.template) {
-                    body = await ctx.view(route.template, body);
+                if (!intercepted) {
+                    body = await route.handler(ctx);
+                    if (route.template) {
+                        body = await ctx.view(route.template, body);
+                    }
                 }
             } else {
                 throw new HttpError("Route not found: " + ctx.path, HttpStatus.NOT_FOUND);

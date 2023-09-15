@@ -1,11 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 import { Reflect } from "./deps.ts";
-import { Decorator, Route, RouteHandler } from "./types.ts";
+import { Decorator, Interceptor, Route, RouteHandler } from "./types.ts";
 import { Server } from "./server.ts";
 
 export const container = new class Container {
     errorHandler?: RouteHandler;
-    interceptors: RouteHandler[] = [];
+    interceptors: Interceptor[] = [];
     routes: Route[] = [];
 
     private modules: Set<any> = new Set();
@@ -53,10 +53,10 @@ export const container = new class Container {
             const members = Object.getOwnPropertyNames(target.prototype);
             for (const member of members) {
                 if (member !== "constructor") {
-                    this.interceptors.push(target.instance[member]);
+                    const handler = target.instance[member].bind(target.instance);
+                    this.interceptors.push(handler);
                 }
             }
-            return;
         }
 
         // Set error handler
@@ -68,9 +68,11 @@ export const container = new class Container {
 
         // Inject autowired properties
         for (const prop of properties) {
+            const decorated = component || controller || interceptor;
             const relname = prop.relname as string;
             const reltype = prop.reltype;
-            if (!component && !controller) throw "The module of '" + target.name + "' must be decorated.";
+
+            if (!decorated) throw "The module of '" + target.name + "' must be decorated.";
             if (!relname) throw "@Autowired decorator must be added to a property.";
             if (!reltype) throw "@Autowired decorator must declare a type.";
             if (!this.modules.has(reltype)) throw "Undefined module '" + relname + "' in '" + target.name + "'.";

@@ -29,6 +29,11 @@ export type Decorator = {
     reltype?: any;
 };
 
+// Callback function in the interceptor
+export type Interceptor = (
+    ctx: Context,
+) => boolean | Promise<boolean>;
+
 // Route callback function in the controller
 export type RouteHandler = (
     ctx: Context,
