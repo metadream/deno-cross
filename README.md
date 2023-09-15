@@ -55,17 +55,20 @@ export default class {
 ### 1. Interceptor
 
 The interceptor is not required, but if there is one, the methods in it will be executed
- in order.
+ in order. If the interceptor method returns true, it means that the interception is successful
+  and other methods and routes will no longer be executed.
 
 ```ts
 // Authenticator.ts
 @Interceptor
 export class Authenticator {
-    cors(ctx: Context) {
+    cors(ctx: Context): boolean {
         // do something first
+        return true;
     }
-    auth(ctx: Context) {
+    auth(ctx: Context): boolean {
         // do something second
+        return false;
     }
 }
 ```
