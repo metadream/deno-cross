@@ -63,7 +63,7 @@ export const container = new class Container {
         if (errorHandler) {
             if (!component) throw "The module of '" + target.name + "' must be decorated.";
             if (!errorHandler.fn) throw "@ErrorHandler decorator must be added to a method.";
-            this.errorHandler = errorHandler.fn;
+            this.errorHandler = errorHandler.fn.bind(target.instance);
         }
 
         // Inject autowired properties
