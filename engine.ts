@@ -1,6 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
 import { resolve } from "./deps.ts";
-import { Renderer } from "./types.ts";
 
 // Template syntax
 const syntax = {
@@ -30,11 +29,11 @@ const variable = {
  */
 export class Engine {
     // Cache template file and compiled function
-    private cache: Record<string, Renderer> = {};
+    private cache: Record<string, any> = {};
 
     // Template engine options
     private viewRoot = "";
-    private attributes = {};
+    private attributes: Record<string, any> = {};
 
     /**
      * Initialize custom options
@@ -44,7 +43,7 @@ export class Engine {
         this.viewRoot = viewRoot;
     }
 
-    import(attributes: unknown) {
+    import(attributes: Record<string, unknown>) {
         Object.assign(this.attributes, attributes);
     }
 
@@ -53,7 +52,7 @@ export class Engine {
      * @param {string} tmpl
      * @returns {Function}
      */
-    compile(tmpl: string): Renderer {
+    compile(tmpl: string) {
         const codes: string[] = [];
         tmpl = this.block(tmpl);
         tmpl = this.escape(this.reduce(tmpl))
@@ -88,8 +87,9 @@ export class Engine {
 
         try {
             const fn = new Function("data", source);
-            return (data: unknown) => {
-                data = Object.assign({ ...this.attributes }, data);
+            return async (data: unknown) => {
+                const attributes = await this.runAttributes();
+                data = Object.assign({ ...attributes }, data);
                 return fn.call(null, data);
             };
         } catch (e) {
@@ -104,7 +104,7 @@ export class Engine {
      * @param {object} data
      * @returns {string}
      */
-    render(tmpl: string, data: unknown): string {
+    render(tmpl: string, data: unknown): Promise<string> {
         return this.compile(tmpl)(data);
     }
 
@@ -180,6 +180,17 @@ export class Engine {
             return "let " + varString + ";";
         }
         return "";
+    }
+
+    /**
+     * Execute the values of attributes in runtime.
+     */
+    private async runAttributes() {
+        const attributes: Record<string, unknown> = {};
+        for (const [name, fn] of Object.entries(this.attributes)) {
+            attributes[name] = await fn();
+        }
+        return attributes;
     }
 
     /**

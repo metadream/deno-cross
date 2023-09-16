@@ -28,7 +28,7 @@ export class Context {
 
     query: Record<string, string> = {};
     params: Record<string, string> = {};
-    render: (tmpl: string, data: unknown) => string;
+    render: (tmpl: string, data: unknown) => Promise<string>;
     view: (file: string, data: unknown) => Promise<string>;
     template?: string;
     isStaticPath?: boolean;

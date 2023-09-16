@@ -1,8 +1,5 @@
 import { Context } from "./context.ts";
 
-// Template engine compiled function
-export type Renderer = (data: unknown) => string;
-
 // App server options
 export type ServerOptions = {
     port?: number;
