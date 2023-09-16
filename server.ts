@@ -1,5 +1,5 @@
 import { extname, resolve } from "./deps.ts";
-import { EngineOptions, HttpError, HttpStatus, Method, Mime, RouteHandler, ServerOptions } from "./types.ts";
+import { HttpError, HttpStatus, Method, Mime, RouteHandler, ServerOptions } from "./types.ts";
 import { Context } from "./context.ts";
 import { Engine } from "./engine.ts";
 import { Router } from "./router.ts";
@@ -20,15 +20,9 @@ export class Server {
         onError: this.onError.bind(this),
     };
 
-    private engineOptions: EngineOptions = {
-        viewRoot: "",
-        imports: {},
-    };
-
     // Run web server
     run(): Server {
         container.routes.forEach((route) => this.router.add(route));
-        this.engine.init(this.engineOptions);
         Deno.serve(this.serverOptions, this.handleRequest.bind(this));
         return this;
     }
@@ -47,13 +41,13 @@ export class Server {
 
     // Set views root of template engine
     views(viewRoot: string) {
-        if (viewRoot) this.engineOptions.viewRoot = viewRoot;
+        this.engine.init(viewRoot);
         return this;
     }
 
-    // Set imports of template engine
-    imports(imports: object) {
-        if (imports) this.engineOptions.imports = imports;
+    // Import attribute to template
+    import(attribute: object) {
+        this.engine.import(attribute);
         return this;
     }
 
@@ -81,6 +75,9 @@ export class Server {
             const route = this.router.find(ctx.method, ctx.path);
             if (route) {
                 ctx.route = route;
+                if (route.handler === this.handleResource) {
+                    ctx.isStaticPath = true;
+                }
 
                 // Run interceptors
                 let intercepted = false;
@@ -88,6 +85,7 @@ export class Server {
                     intercepted = await interceptor(ctx);
                     if (intercepted) break;
                 }
+
                 // Run route handler
                 if (!intercepted) {
                     body = await route.handler(ctx);

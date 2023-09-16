@@ -150,12 +150,9 @@ used for rendering automatically. The built-in engine syntax see [SYNTAX.md](/SY
 @Bootstrap
 export default class {
     constructor(app: Server) {
-        app.modules(Authenticator, ErrorController, UserController, UserService);
         app.assets("/assets/*");
-
-        // Add the following code for template engine
-        app.views("./views");
-        app.imports({ formatDate });
+        app.views("./views");  // Add template root path
+        app.modules(Authenticator, ErrorController, UserController, UserService);
     }
 }
 
@@ -173,7 +170,27 @@ export class UserController {
 }
 
 // index.html
-<h1>Hello, {{= name }} {{= formatDate(birthdate) }}</h1>
+// Assume that the user object is { name, age }
+<h1>Hello, {{= name }}, Your age is {{= age }}</h1>
+```
+
+### 6. Attribute
+
+If you want to use global properties or methods on the template, you can define an attribute decorator.
+ The method name is the attribute name.
+
+```ts
+// Attributes.ts
+@Component
+export class Attributes {
+    @Attribute
+    appName() {
+        return "spring";
+    }
+}
+
+// index.html
+<h1>Hello, {{= appName }}</h1>
 ```
 
 ## API Reference
@@ -183,7 +200,6 @@ export class UserController {
 - `app.port` HTTP server listening port, default 3000.
 - `app.hostname` HTTP server hostname, default "0.0.0.0"
 - `app.views` The root of template files, default ""
-- `app.imports` Global imports for template, default {}
 - `app.assets` The paths of static resources
 - `app.modules` Load classes that need to use decorator in the application
 - `app.get`, `app.post`, `app.put`... Request methods with `(path, handler)` parameters
@@ -198,6 +214,7 @@ export class UserController {
 | @Controller   | ClassDecorator    | string     | Prefix for request route      |
 | @Autowired    | PropertyDecorator |            | Inject components             |
 | @ErrorHandler | MethodDecorator   |            |                               |
+| @Attribute    | MethodDecorator   |            |                               |
 | @View         | MethodDecorator   | string     | Template file path            |
 | @Get          | MethodDecorator   | string     | Route path                    |
 | @Post         | MethodDecorator   | string     | Route path                    |

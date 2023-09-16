@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { resolve } from "./deps.ts";
-import { EngineOptions, Renderer } from "./types.ts";
+import { Renderer } from "./types.ts";
 
 // Template syntax
 const syntax = {
@@ -33,14 +33,19 @@ export class Engine {
     private cache: Record<string, Renderer> = {};
 
     // Template engine options
-    private options: EngineOptions = { viewRoot: "", imports: {} };
+    private viewRoot = "";
+    private imports = {};
 
     /**
      * Initialize custom options
      * @param {object} _options
      */
-    init(_options: EngineOptions) {
-        Object.assign(this.options, _options);
+    init(viewRoot: string) {
+        this.viewRoot = viewRoot;
+    }
+
+    import(attribute: unknown) {
+        Object.assign(this.imports, attribute);
     }
 
     /**
@@ -84,7 +89,7 @@ export class Engine {
         try {
             const fn = new Function("data", source);
             return (data: unknown) => {
-                data = Object.assign({ ...this.options.imports }, data);
+                data = Object.assign({ ...this.imports }, data);
                 return fn.call(null, data);
             };
         } catch (e) {
@@ -123,10 +128,10 @@ export class Engine {
      * @returns string
      */
     private async include(file: string) {
-        let tmpl = await Deno.readTextFile(resolve(this.options.viewRoot, file));
+        let tmpl = await Deno.readTextFile(resolve(this.viewRoot, file));
         while (syntax.PARTIAL.test(tmpl)) {
             tmpl = await this.replaceAsync(tmpl, syntax.PARTIAL, async (_: string, _file: string) => {
-                return await Deno.readTextFile(resolve(this.options.viewRoot, _file));
+                return await Deno.readTextFile(resolve(this.viewRoot, _file));
             });
         }
         return tmpl;

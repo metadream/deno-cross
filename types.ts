@@ -12,12 +12,6 @@ export type ServerOptions = {
     onError?: (error: unknown) => Response | Promise<Response>;
 };
 
-// Template engine options
-export type EngineOptions = {
-    viewRoot: string;
-    imports: object;
-};
-
 // Decorator entity
 export type Decorator = {
     name: string;

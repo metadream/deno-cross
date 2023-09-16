@@ -31,6 +31,7 @@ export class Context {
     render: (tmpl: string, data: unknown) => string;
     view: (file: string, data: unknown) => Promise<string>;
     template?: string;
+    isStaticPath?: boolean;
 
     private req: Request;
     private res: {
@@ -72,8 +73,8 @@ export class Context {
     }
 
     set route(route: Route) {
-        this.params = route.params || {};
         this.template = route.template;
+        this.params = route.params || {};
     }
 
     has(name: string) {

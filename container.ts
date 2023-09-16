@@ -47,6 +47,7 @@ export const container = new class Container {
         const requests = this.getMetadata(target, "@Request");
         const views = this.getMetadata(target, "@View");
         const properties = this.getMetadata(target, "@Autowired");
+        const attributes = this.getMetadata(target, "@Attribute");
 
         // Extract all methods of the interceptor
         if (interceptor) {
@@ -77,6 +78,16 @@ export const container = new class Container {
             if (!reltype) throw "@Autowired decorator must declare a type.";
             if (!this.modules.has(reltype)) throw "Undefined module '" + relname + "' in '" + target.name + "'.";
             target.instance[relname] = reltype.instance;
+        }
+
+        // Inject attributes for template
+        for (const attr of attributes) {
+            if (!component) throw "The module of '" + target.name + "' must be decorated.";
+            if (!attr.fn) throw "@Attribute decorator must be added to a method.";
+
+            const relname = attr.relname as string;
+            const fn = attr.fn as any;
+            this.server.import({ [relname]: fn.call(target.instance) });
         }
 
         // Parse request routes

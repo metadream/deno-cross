@@ -69,18 +69,8 @@ thanks [doT](https://github.com/olado/doT),
 
 ## Methods
 
-- `init(options)` Initialize custom options（not necessary).
-
-```
-init({
-  root: "template", // relative to the project root, default ""
-  imports: { // Custom global properties or functions, default {}
-    name: "",
-    calc: () => {}
-  }
-})
-```
-
+- `init(templateRootPath: string)` Initialize custom options（not necessary). relative to the project root, default ""
+- `import(attribute: object)` Custom global properties or functions, default {}
 - `compile(tmpl)` Compile the specify template text to a function.
 - `render(tmpl, data)` Compile and render the template with data.
 - `view(file, data)` Render the template file with data (using cache).

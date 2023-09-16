@@ -43,6 +43,15 @@ export function Autowired(target: any, relname: string) {
 }
 
 // MethodDecorator
+export function Attribute(target: any, relname: string, desc: any) {
+    container.register(target.constructor, {
+        name: "@Attribute",
+        relname,
+        fn: desc.value,
+    });
+}
+
+// MethodDecorator
 export function ErrorHandler(target: any, _relname: string, desc: any) {
     container.register(target.constructor, {
         name: "@ErrorHandler",
