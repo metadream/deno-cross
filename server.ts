@@ -21,8 +21,9 @@ export class Server {
     };
 
     // Run web server
-    run(): Server {
-        container.routes.forEach((route) => this.router.add(route));
+    async run(): Promise<Server> {
+        await this.loadAttributes();
+        this.loadRoutes();
         Deno.serve(this.serverOptions, this.handleRequest.bind(this));
         return this;
     }
@@ -45,12 +46,6 @@ export class Server {
         return this;
     }
 
-    // Import attribute to template
-    import(attribute: object) {
-        this.engine.import(attribute);
-        return this;
-    }
-
     // Set static resources paths
     assets(...assets: string[]) {
         for (const path of assets) {
@@ -64,6 +59,18 @@ export class Server {
         for (const module of modules) {
             container.inject(module);
         }
+    }
+
+    private async loadAttributes() {
+        const attributes: Record<string, object> = {};
+        for (const [name, fn] of Object.entries(container.attributes)) {
+            attributes[name] = await fn();
+        }
+        this.engine.import(attributes);
+    }
+
+    private loadRoutes() {
+        container.routes.forEach((route) => this.router.add(route));
     }
 
     // Handle request

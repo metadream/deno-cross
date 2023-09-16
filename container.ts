@@ -5,6 +5,7 @@ import { Server } from "./server.ts";
 
 export const container = new class Container {
     errorHandler?: RouteHandler;
+    attributes: Record<string, any> = {};
     interceptors: Interceptor[] = [];
     routes: Route[] = [];
 
@@ -86,8 +87,7 @@ export const container = new class Container {
             if (!attr.fn) throw "@Attribute decorator must be added to a method.";
 
             const relname = attr.relname as string;
-            const fn = attr.fn as any;
-            this.server.import({ [relname]: fn.call(target.instance) });
+            this.attributes[relname] = attr.fn.bind(target.instance);
         }
 
         // Parse request routes

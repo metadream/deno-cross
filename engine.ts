@@ -34,7 +34,7 @@ export class Engine {
 
     // Template engine options
     private viewRoot = "";
-    private imports = {};
+    private attributes = {};
 
     /**
      * Initialize custom options
@@ -44,8 +44,8 @@ export class Engine {
         this.viewRoot = viewRoot;
     }
 
-    import(attribute: unknown) {
-        Object.assign(this.imports, attribute);
+    import(attributes: unknown) {
+        Object.assign(this.attributes, attributes);
     }
 
     /**
@@ -89,7 +89,7 @@ export class Engine {
         try {
             const fn = new Function("data", source);
             return (data: unknown) => {
-                data = Object.assign({ ...this.imports }, data);
+                data = Object.assign({ ...this.attributes }, data);
                 return fn.call(null, data);
             };
         } catch (e) {
