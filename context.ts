@@ -26,8 +26,8 @@ export class Context {
     port: string;
     path: string;
 
-    query: Record<string, string> = {};
-    params: Record<string, string> = {};
+    query: Record<string, string | number | boolean> = {};
+    params: Record<string, string | number | boolean> = {};
     render: (tmpl: string, data: unknown) => Promise<string>;
     view: (file: string, data: unknown) => Promise<string>;
     template?: string;
