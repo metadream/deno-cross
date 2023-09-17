@@ -134,7 +134,7 @@ export class Server {
             }
         } catch (e) {
             if (e instanceof Deno.errors.NotFound) {
-                throw new HttpError("File not found", HttpStatus.NOT_FOUND);
+                throw new HttpError("File not found: " + ctx.path, HttpStatus.NOT_FOUND);
             } else {
                 throw e;
             }
