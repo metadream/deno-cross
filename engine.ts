@@ -88,7 +88,7 @@ export class Engine {
         try {
             const fn = new Function("data", source);
             return async (data: unknown) => {
-                const attributes = await this.runAttributes();
+                const attributes = await this.export();
                 data = Object.assign({ ...attributes }, data);
                 return fn.call(null, data);
             };
@@ -185,7 +185,7 @@ export class Engine {
     /**
      * Execute the values of attributes in runtime.
      */
-    private async runAttributes() {
+    private async export() {
         const attributes: Record<string, unknown> = {};
         for (const [name, fn] of Object.entries(this.attributes)) {
             attributes[name] = await fn();
