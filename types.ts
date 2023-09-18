@@ -1,14 +1,5 @@
 import { Context } from "./context.ts";
 
-// App server options
-export type ServerOptions = {
-    port?: number;
-    hostname?: string;
-    assets?: string[];
-    onListen?: (params: { hostname: string; port: number }) => void;
-    onError?: (error: unknown) => Response | Promise<Response>;
-};
-
 // Decorator entity
 export type Decorator = {
     name: string;
