@@ -1,6 +1,6 @@
 import { Cookie, deleteCookie, getCookies, setCookie } from "./deps.ts";
 import { Route } from "./types.ts";
-import { Engine } from "./engine.ts";
+import { Server } from "./server.ts";
 
 /**
  * Spring Application Context
@@ -28,6 +28,7 @@ export class Context {
 
     query: Record<string, string | number | boolean> = {};
     params: Record<string, string | number | boolean> = {};
+    serve: (ctx: Context) => Promise<ArrayBuffer | undefined>;
     render: (tmpl: string, data: unknown) => Promise<string>;
     view: (file: string, data: unknown) => Promise<string>;
     template?: string;
@@ -43,11 +44,12 @@ export class Context {
     // REQUEST ////////////////////////////////////////////////////////////////
 
     // Creates context instance for each request
-    constructor(req: Request, info: Deno.ServeHandlerInfo, engine: Engine) {
+    constructor(server: Server, req: Request, info: Deno.ServeHandlerInfo) {
         this.req = req;
         this.res = { headers: new Headers() };
-        this.render = engine.render.bind(engine);
-        this.view = engine.view.bind(engine);
+        this.serve = server.handleResource;
+        this.render = server.engine.render.bind(server.engine);
+        this.view = server.engine.view.bind(server.engine);
 
         this.addr = info.remoteAddr;
         this.method = req.method;

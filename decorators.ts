@@ -25,8 +25,8 @@ export function Component(target: any) {
 
 // ClassDecorator(prefix)
 export function Controller(prefix?: string): ClassDecorator {
-    return (constructor) => {
-        container.register(constructor, {
+    return (target) => {
+        container.register(target, {
             name: "@Controller",
             param: prefix || "",
         });

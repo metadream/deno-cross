@@ -10,8 +10,8 @@ import { container } from "./container.ts";
  * to handle requests and static resources
  */
 export class Server {
+    engine = new Engine();
     private router = new Router();
-    private engine = new Engine();
 
     private serverOptions: ServerOptions = {
         port: 3000,
@@ -63,7 +63,7 @@ export class Server {
 
     // Handle request
     private async handleRequest(req: Request, info: Deno.ServeHandlerInfo) {
-        const ctx = new Context(req, info, this.engine);
+        const ctx = new Context(this, req, info);
         let body = null;
 
         try {
@@ -105,7 +105,7 @@ export class Server {
     }
 
     // Handle static resource
-    private async handleResource(ctx: Context): Promise<ArrayBuffer | undefined> {
+    async handleResource(ctx: Context): Promise<ArrayBuffer | undefined> {
         // Removes the leading slash and converts relative path to absolute path
         let file = resolve(ctx.path.replace(/^\/+/, ""));
 
