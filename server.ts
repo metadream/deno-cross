@@ -136,7 +136,7 @@ export class Server {
                 }
             }
         } catch (err) {
-            console.error("\x1b[31m[Spring]", err, "\x1b[0m");
+            console.error("\x1b[31m[SPRING ERROR]\x1b[0m", err);
             ctx.status = err.status || HttpStatus.INTERNAL_SERVER_ERROR;
 
             if (container.errorHandler) {
@@ -150,14 +150,14 @@ export class Server {
 
     // Listen event
     private onListen(params: { hostname: string; port: number }): void {
-        console.log(`\x1b[90m[Spring] ${this.version()}\x1b[0m`);
-        console.log(`\x1b[90m[Spring] Repository: https://github.com/metadream/deno-spring\x1b[0m`);
-        console.log(`[Spring] Server is running at \x1b[4m\x1b[36mhttp://${params.hostname}:${params.port}\x1b[0m`);
+        console.log(`\x1b[90mSpring Versions: ${this.version()}\x1b[0m`);
+        console.log(`\x1b[90mSpring Repository: https://github.com/metadream/deno-spring\x1b[0m`);
+        console.log(`Spring server is listening on \x1b[4m\x1b[36mhttp://${params.hostname}:${params.port}\x1b[0m`);
     }
 
     // Error event
     private onError(error: unknown): Response | Promise<Response> {
-        console.error("\x1b[31m[Spring]", error, "\x1b[0m");
+        console.error("\x1b[31m[SPRING ERROR]\x1b[0m", error);
         return new Response((error as Error).message, { status: HttpStatus.INTERNAL_SERVER_ERROR });
     }
 
