@@ -4,10 +4,12 @@ import { Server } from "./server.ts";
 
 /**
  * Spring Application Context
- * extends native request and response
+ * enhance native request and response
+ * @Author metadream
+ * @Since 2022-11-09
  */
 export class Context {
-    // Allows add custom properties
+    // Allow adding custom properties
     [index: string]: unknown;
 
     json: () => Promise<unknown>;
@@ -79,15 +81,15 @@ export class Context {
         this.params = route.params || {};
     }
 
-    has(name: string) {
+    has(name: string): boolean {
         return this.req.headers.has(name);
     }
 
-    get(name: string) {
+    get(name: string): string | null {
         return this.req.headers.get(name);
     }
 
-    set(name: string, value: string) {
+    set(name: string, value: string): void {
         this.res.headers.set(name, value);
     }
 
@@ -96,16 +98,16 @@ export class Context {
         const resHeaders = this.res.headers;
 
         return {
-            get(name?: string) {
+            get(name?: string): string | Record<string, string> {
                 const cookies = getCookies(reqHeaders);
                 return name ? cookies[name] : cookies;
             },
-            set(name: string, value: string, options?: Cookie) {
+            set(name: string, value: string, options?: Cookie): void {
                 const cookie = { name, value };
                 Object.assign(cookie, options);
                 setCookie(resHeaders, cookie);
             },
-            delete(name: string, attributes?: { path?: string; domain?: string }) {
+            delete(name: string, attributes?: { path?: string; domain?: string }): void {
                 deleteCookie(resHeaders, name, attributes);
             },
         };
@@ -129,16 +131,16 @@ export class Context {
         return this.res.statusText || "";
     }
 
-    // Permanent redirect codes: 301, 308 (default)
-    // Temporary redirect codes: 302，303，307
-    redirect(url: string, status: 301 | 302 | 303 | 307 | 308 = 308) {
+    // Permanent redirect codes: 301, 308
+    // Temporary redirect codes: 302，303，307 (default)
+    redirect(url: string, status: 301 | 302 | 303 | 307 | 308 = 307): void {
         this.res.status = status;
         this.res.headers.set("Location", url);
     }
 
     // Build the response instance
     // BodyInit: Blob, BufferSource, FormData, ReadableStream, URLSearchParams, or USVString
-    respond(body: BodyInit | Response | null | undefined) {
+    respond(body: BodyInit | Response | null | undefined): Response {
         if (body === undefined || body === null || this.status === 204 || this.status === 304) {
             return new Response(null, this.res);
         }

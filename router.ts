@@ -1,8 +1,11 @@
 import { Route } from "./types.ts";
 
 /**
- * Router
- * @example /static
+ * Core Router for adding and finding routes
+ * @Author metadream
+ * @Since 2022-11-09
+ *
+ * @example /literal
  * @example /:user
  * @example /:users?
  * @example /:user(\\d+)
@@ -50,6 +53,7 @@ export class Router {
         }
     }
 
+    // Sort routes by specific rule
     private sortRoutes(): void {
         this.routes.sort((a: Route, b: Route) => {
             const aLen = a.path.length;
@@ -69,11 +73,7 @@ export class Router {
         });
     }
 
-    /**
-     * Parse route pattern to regex
-     * @param {string|RegExp} pattern
-     * @returns
-     */
+    // Parse route path to regex pattern
     private parse(pattern: string | RegExp): RegExp {
         return pattern instanceof RegExp ? pattern : new RegExp(
             "^" + pattern

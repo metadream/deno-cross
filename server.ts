@@ -6,8 +6,10 @@ import { Router } from "./router.ts";
 import { container } from "./container.ts";
 
 /**
- * Web application server
+ * Web Application Server
  * to handle requests and static resources
+ * @Author metadream
+ * @Since 2022-11-09
  */
 export class Server {
     engine = new Engine();
@@ -173,31 +175,31 @@ export class Server {
         };
     }
 
-    get(path: string, handler: RouteHandler) {
+    get(path: string, handler: RouteHandler): Server {
         return this.shortcut(Method.GET)(path, handler);
     }
 
-    post(path: string, handler: RouteHandler) {
+    post(path: string, handler: RouteHandler): Server {
         return this.shortcut(Method.POST)(path, handler);
     }
 
-    put(path: string, handler: RouteHandler) {
+    put(path: string, handler: RouteHandler): Server {
         return this.shortcut(Method.PUT)(path, handler);
     }
 
-    delete(path: string, handler: RouteHandler) {
+    delete(path: string, handler: RouteHandler): Server {
         return this.shortcut(Method.DELETE)(path, handler);
     }
 
-    patch(path: string, handler: RouteHandler) {
+    patch(path: string, handler: RouteHandler): Server {
         return this.shortcut(Method.PATCH)(path, handler);
     }
 
-    head(path: string, handler: RouteHandler) {
+    head(path: string, handler: RouteHandler): Server {
         return this.shortcut(Method.HEAD)(path, handler);
     }
 
-    options(path: string, handler: RouteHandler) {
+    options(path: string, handler: RouteHandler): Server {
         return this.shortcut(Method.OPTIONS)(path, handler);
     }
 }

@@ -1,5 +1,17 @@
 import { Context } from "./context.ts";
 
+// Template render function
+export type Renderer = (data: unknown) => Promise<string>;
+
+// Interceptor callback function
+export type Interceptor = (ctx: Context) => boolean | Promise<boolean>;
+
+// Route callback function
+export type RouteHandler = (
+    ctx: Context,
+    err?: Error,
+) => void | BodyInit | Response | null | undefined | Promise<BodyInit | Response | null | undefined>;
+
 // Decorator entity
 export type Decorator = {
     name: string;
@@ -10,17 +22,6 @@ export type Decorator = {
     // deno-lint-ignore no-explicit-any
     reltype?: any;
 };
-
-// Callback function in the interceptor
-export type Interceptor = (
-    ctx: Context,
-) => boolean | Promise<boolean>;
-
-// Route callback function in the controller
-export type RouteHandler = (
-    ctx: Context,
-    err?: Error,
-) => void | BodyInit | Response | null | undefined | Promise<BodyInit | Response | null | undefined>;
 
 // Route entity
 export type Route = {

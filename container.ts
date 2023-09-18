@@ -3,6 +3,12 @@ import { Reflect } from "./deps.ts";
 import { Decorator, Interceptor, Route, RouteHandler } from "./types.ts";
 import { Server } from "./server.ts";
 
+/**
+ * Dependency Injection Container
+ * is a singleton in the application
+ * @Author metadream
+ * @Since 2022-11-09
+ */
 export const container = new class Container {
     errorHandler?: RouteHandler;
     attributes: Record<string, any> = {};

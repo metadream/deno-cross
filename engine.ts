@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { resolve } from "./deps.ts";
+import { Renderer } from "./types.ts";
 
 // Template syntax
 const syntax = {
@@ -25,34 +26,33 @@ const variable = {
 
 /**
  * A compact, high-performance and full-featured template engine
- * Licensed under the MIT license.
+ * @Author metadream
+ * @Since 2022-11-09
  */
 export class Engine {
     // Cache template file and compiled function
-    private cache: Record<string, any> = {};
+    private cache: Record<string, Renderer> = {};
 
     // Template engine options
-    private viewRoot = "";
+    private tmplRoot = "";
     private attributes: Record<string, any> = {};
 
-    /**
-     * Initialize custom options
-     * @param {object} _options
-     */
-    init(viewRoot: string) {
-        this.viewRoot = viewRoot;
+    // Set the root of template files
+    init(tmplRoot: string): void {
+        this.tmplRoot = tmplRoot;
     }
 
-    import(attributes: Record<string, unknown>) {
+    // Import attributes to template
+    import(attributes: Record<string, unknown>): void {
         Object.assign(this.attributes, attributes);
     }
 
     /**
      * Compile the template to a function
      * @param {string} tmpl
-     * @returns {Function}
+     * @returns {Function} Anonymous function for rendering data
      */
-    compile(tmpl: string) {
+    compile(tmpl: string): Renderer {
         const codes: string[] = [];
         tmpl = this.block(tmpl);
         tmpl = this.escape(this.reduce(tmpl))
@@ -98,22 +98,12 @@ export class Engine {
         }
     }
 
-    /**
-     * Render the template text with data
-     * @param {string} tmpl
-     * @param {object} data
-     * @returns {string}
-     */
+    // Render the template text with data
     render(tmpl: string, data: unknown): Promise<string> {
         return this.compile(tmpl)(data);
     }
 
-    /**
-     * Render the template file with cache
-     * @param {string} file
-     * @param {object} data
-     * @returns string
-     */
+    // Render the template file with cache
     async view(file: string, data: unknown): Promise<string> {
         let render = this.cache[file];
         if (!render) {
@@ -122,26 +112,18 @@ export class Engine {
         return render(data);
     }
 
-    /**
-     * Load template file recursively
-     * @param {string} file
-     * @returns string
-     */
-    private async include(file: string) {
-        let tmpl = await Deno.readTextFile(resolve(this.viewRoot, file));
+    // Load template file recursively
+    private async include(file: string): Promise<string> {
+        let tmpl = await Deno.readTextFile(resolve(this.tmplRoot, file));
         while (syntax.PARTIAL.test(tmpl)) {
             tmpl = await this.replaceAsync(tmpl, syntax.PARTIAL, async (_: string, _file: string) => {
-                return await Deno.readTextFile(resolve(this.viewRoot, _file));
+                return await Deno.readTextFile(resolve(this.tmplRoot, _file));
             });
         }
         return tmpl;
     }
 
-    /**
-     * Replace block holders with block defines
-     * @param {string} tmpl
-     * @returns string
-     */
+    // Replace block holders with block defines
     private block(tmpl: string): string {
         const blocks: Record<string, string> = {};
         return tmpl
@@ -152,11 +134,7 @@ export class Engine {
             .replace(syntax.BLOCK_HOLDER, (_, name: string) => blocks[name] || "");
     }
 
-    /**
-     * Parse variables as declares in function body header
-     * @param {Array} codes
-     * @returns {string}
-     */
+    // Parse variables as declares in function body header
     private declare(codes: string[]): string {
         const varNames = codes.join(",")
             .replace(variable.REMOVE, "")
@@ -174,7 +152,6 @@ export class Engine {
                 prefixVars.push(name);
             }
         }
-
         if (prefixVars.length) {
             const varString = prefixVars.map((v) => v + "=data." + v).join(",");
             return "let " + varString + ";";
@@ -182,10 +159,8 @@ export class Engine {
         return "";
     }
 
-    /**
-     * Execute the values of attributes in runtime.
-     */
-    private async export() {
+    // Execute the values of attributes in runtime.
+    private async export(): Promise<Record<string, unknown>> {
         const attributes: Record<string, unknown> = {};
         for (const [name, fn] of Object.entries(this.attributes)) {
             attributes[name] = await fn();
@@ -193,11 +168,7 @@ export class Engine {
         return attributes;
     }
 
-    /**
-     * Reduce template text
-     * @param {string} tmpl
-     * @returns {string}
-     */
+    // Reduce template text
     private reduce(tmpl: string): string {
         return tmpl.trim()
             .replace(/<!--[\s\S]*?-->/g, "") // remove html comments
@@ -208,28 +179,22 @@ export class Engine {
             .replace(/\r|\n|\t/g, ""); // remove breaks and tabs
     }
 
-    /**
-     * Escape backslash and single quotes
-     * @param {string} tmpl
-     * @returns {string}
-     */
+    // Escape backslash and single quotes
     private escape(tmpl: string): string {
         return tmpl.replace(/\\/g, "\\\\").replace(/\'/g, "\\'");
     }
 
-    /**
-     * Unescape single quotes
-     * @param {string} tmpl
-     * @returns {string}
-     */
+    // Unescape single quotes
     private unescape(tmpl: string): string {
         return tmpl.replace(/\\'/g, "'");
     }
 
+    // Shortcut of ouput
     private output(code: string): string {
         return "';" + code + "out+='";
     }
 
+    // Override replacement function
     private async replaceAsync(str: string, regex: RegExp, asyncFn: any) {
         const promises: any = [];
         const replacer: any = (match: any, ...args: any) => {
