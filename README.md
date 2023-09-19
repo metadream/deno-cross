@@ -1,6 +1,6 @@
 # Deno-Spring
 
-A compact, high-performance and full-featured web server framework in Deno.
+Deno-Spring is a compact, high-performance and full-featured web server framework based on Deno. It can be developed quickly using annotations(decorators) like Java SpringBoot framework.
 
 ## Shortcut mode
 
@@ -19,44 +19,38 @@ export default class {
 }
 ```
 
-Note that features such as components, template engine and unified error handling
- cannot be used in shortcut mode, you must solve them in other ways.
+Visit http://localhost:3000/jack, `hello jack` will be returned.
+
+Note that features such as components, template engine and unified error handling cannot be used in shortcut mode, you must solve them in other ways.
 
 ## Decorator mode
 
-Decorator mode and shortcut mode do not conflict and can be used together. The only
-difference in performance between the two is that the latter needs to parse all
-decorators at startup, it is almost the same in runtime.
+Decorator mode and shortcut mode do not conflict and can be used together. The only difference in performance between the two is that the latter needs to parse all decorators at startup, it is almost the same in runtime.
 
-In decorator mode, you must first create a configuration file named "deno.jsonc"
- in the project root with the following content:
+In decorator mode, you must first create a configuration file named "deno.jsonc" in the project root with the following content:
 
 ```
 {
-    "compilerOptions": {
-        "emitDecoratorMetadata": true,
-    }
+  "compilerOptions": {
+    "emitDecoratorMetadata": true,
+  }
 }
 ```
 
-Then modify the content of `mod.ts` as follows, in order to inject all components with
- decorators into the application by `app.modules` method.
+Then modify the content of `mod.ts` as follows, in order to inject all components with decorators into the application by `app.modules` method.
 
 ```ts
 @Bootstrap
 export default class {
     constructor(app: Server) {
         app.modules(Authenticator, ErrorController, UserController, UserService);
-        app.assets("/static/*");
     }
 }
 ```
 
 ### 1. Interceptor
 
-The interceptor is not required, but if there is one, the methods in it will be executed
- in order. If the interceptor method returns true, it means that the interception is successful
-  and other methods and routes will no longer be executed.
+The interceptor is not required, but if there is one, the methods in it will be executed in order. If the interceptor method returns true, it means that the interception is successful and other methods and routes will no longer be executed.
 
 ```ts
 // Authenticator.ts
@@ -75,8 +69,7 @@ export class Authenticator {
 
 ### 2. ErrorHandler
 
-If an error handler component is defined, all errors within the framework will
- be handled by it.
+If an error handler component is defined, all errors within the framework will be handled by it.
 
 ```ts
 // ErrorController.ts
@@ -110,7 +103,7 @@ export class UserController {
 }
 ```
 
-If you want to use the service class in the constructor, you need to refer to the following usage:
+Note that if you want to use the service class in the constructor, you need to refer to the following usage:
 
 ```ts
 // UserController.ts
@@ -141,17 +134,14 @@ export class UserService {
 
 ### 5. View
 
-View decorator are used to decorate controller methods, and its parameter is
-the template file path. After adding it, the built-in template engine will be
-used for rendering automatically. The built-in engine syntax see [SYNTAX.md](/SYNTAX.md)
+View decorator are used to decorate controller methods, and its parameter is the template file path. After adding it, the built-in template engine will be used for rendering automatically. First you can set the template root directory in the startup class.
 
 ```ts
 // mod.ts
 @Bootstrap
 export default class {
     constructor(app: Server) {
-        app.assets("/assets/*");
-        app.views("./views");  // Add template root path
+        app.views("./views");  // Add template root directory
         app.modules(Authenticator, ErrorController, UserController, UserService);
     }
 }
@@ -163,7 +153,7 @@ export class UserController {
     userService!: UserService;
 
     @Get("/:id")
-    @View("index.html") // or @View("./project/path/index.html") if options not initialized
+    @View("index.html") // or @View("./project/path/index.html") if the root directory is not set
     getUser(ctx: Context) {
         return this.userService.getUser(ctx.params.id);
     }
@@ -176,8 +166,7 @@ export class UserController {
 
 ### 6. Attribute
 
-If you want to use global properties or methods on the template, you can define an attribute decorator.
- The method name is the attribute name.
+If you want to use global properties or methods in the template, you can define an attribute decorator. The method name is the attribute name.
 
 ```ts
 // Attributes.ts
@@ -226,8 +215,7 @@ export class Attributes {
 
 ### Context
 
-Context is an instance passed to controllers, Interceptors and error handler, it
-contains properties and methods related to requests and responses.
+Context is an instance passed to controllers, Interceptors and error handler, it contains properties and methods related to requests and responses.
 
 #### Request Properties
 
@@ -241,8 +229,7 @@ contains properties and methods related to requests and responses.
 - `ctx.port` ex. 3000
 - `ctx.path` ex. /users
 - `ctx.method` Standard http request methods
-- `ctx.has`, `ctx.get` Shortcuts for obtain reqeust headers. Refer to
-  https://deno.com/deploy/docs/runtime-headers
+- `ctx.has`, `ctx.get` Shortcuts for obtain reqeust headers. Refer to https://deno.com/deploy/docs/runtime-headers
 - `ctx.cookies` Including one method to get request cookie:
   `ctx.cookies.get(name)`
 - `ctx.text`, `ctx.json`, `ctx.form`, `ctx.blob`, `ctx.buffer` Promised methods to parse request body.
@@ -253,25 +240,98 @@ contains properties and methods related to requests and responses.
 - `ctx.status=`
 - `ctx.statusText`
 - `ctx.statusText=`
-- `ctx.cookies` Including two methods to operate response cookie:
-  `set(name, value)`,`delete(name)`
+- `ctx.cookies` Including two methods to operate response cookie: `set(name, value)`,`delete(name)`
 
 #### Response Methods
 
-- `ctx.set(name, value)` The following 3 methods are used to manipulate response
-  headers
-- `ctx.redirect(url[, status])` Redirect url with default status code 308.
+- `ctx.set(name, value)` The following 3 methods are used to manipulate response headers
+- `ctx.redirect(url[, status])` Redirect url with default status code 307.
 
-#### Others
+#### Utils
 
-- `ctx.view(tmplFile, data)` If the controller method does not add a `@View`
-  decorator, you can call this method to return the rendered text content.
+- `ctx.serve(staticFile)` Handle static resources and return `ArrayBuffer`
 - `ctx.render(tmplText, data)` Render template text, usually not needed.
+- `ctx.view(tmplFile, data)` If the controller method does not add a `@View` decorator, you can call this method to return the rendered text content.
 
 #### Return types
 
 Controller methods are allowed to return the following object types:
 
-- `BodyInit`: Blob, BufferSource, FormData, ReadableStream, URLSearchParams, or
-  USVString
+- `BodyInit`: Blob, BufferSource, FormData, ReadableStream, URLSearchParams, or USVString
 - `Response`: Native response instance.
+
+## Built-in template engine syntax
+
+The built-in template engine refers to [doT](https://github.com/olado/doT) and [EasyTemplateJS](https://github.com/ushelp/EasyTemplateJS). It can be used as a independency feature.
+
+- `{{= }}` Interpolation.
+
+- `{{ }}` Evaluate code snippet in javascript. Note that the variables do not need to be declared.
+```
+{{ result = 60*60; }}
+<div>{{= result }}</div>
+```
+
+- `{{? }} {{?? }} {{? }}` Conditional statement.
+
+```
+{{? gender == 0 }}
+  <div>Female</div>
+{{?? gender == 1 }}
+  <div>Male</div>
+{{?? }}
+  <div>Unknown</div>
+{{? }}
+```
+
+- `{{~ }} {{~ }}` Iterative statement.
+
+```
+<ul>
+{{~ users:user:index }}
+  <li>{{= index+1 }} - {{= user.name }}<li>
+{{~ }}
+</ul>
+```
+
+- `{{> }}` Block placeholder.
+- `{{< }}` Block content definition.
+
+The above two syntaxes can belong to two different files and only need to be included.
+```
+{{> content }}
+
+{{< content }}
+  <h1>Hello spring.</h1>
+{{< }}
+```
+
+- `{{@ }}` Partial including in layout mode. You must be rendered by `view(file, data)` method.
+
+```
+// header.html
+<h1>Hello spring.</h1>
+
+// index.html
+{{@ header.html }}
+```
+
+## Methods
+
+- `init(templateRoot: string)` Initialize custom options（not necessary). relative to the project root, default ""
+- `import(attribute: object)` Custom global properties or functions, default {}
+- `compile(tmpl)` Compile the specify template text to a function.
+- `render(tmpl, data)` Compile and render the template with data.
+- `view(file, data)` Render the template file with data (using cache).
+
+### Reserved symbols
+
+- `{{! }}`
+- `{{# }}`
+- `{{$ }}`
+- `{{% }}`
+- `{{^ }}`
+- `{{& }}`
+- `{{+ }}`
+- `{{- }}`
+- `{{* }}`
