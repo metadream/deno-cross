@@ -32,6 +32,7 @@ In decorator mode, you must first create a configuration file named "deno.jsonc"
 ```
 {
   "compilerOptions": {
+    "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
   }
 }
