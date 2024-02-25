@@ -36,7 +36,7 @@ export class Context {
     template?: string;
     isStaticPath?: boolean;
 
-    private req: Request;
+    req: Request;
     private res: {
         headers: Headers;
         status?: number;
