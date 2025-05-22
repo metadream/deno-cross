@@ -1,9 +1,10 @@
-// deno-lint-ignore-file no-explicit-any
-import { resolve } from "./deps.ts";
-import { Renderer } from "./types.ts";
+import { resolve } from "@std/path";
 
-// Template syntax
-const syntax = {
+/** Renderer function type */
+type Renderer = (data: unknown) => Promise<string>;
+
+/** Template syntax */
+const Syntax = {
     PARTIAL: /\{\{@\s*(\S+?)\s*\}\}/g,
     BLOCK_HOLDER: /\{\{>\s*(\S+?)\s*\}\}/g,
     BLOCK_DEFINE: /\{\{<\s*(\S+?)\s*\}\}([\s\S]*?)\{\{<\s*\}\}/g,
@@ -13,8 +14,8 @@ const syntax = {
     ITERATIVE: /\{\{~\s*(?:\}\}|([\s\S]+?)\s*\:\s*([\w$]+)\s*(?:\:\s*([\w$]+))?\s*\}\})/g,
 };
 
-// Variable patterns
-const variable = {
+/** Variable pattern */
+const Variable = {
     REMOVE: /\/\*[\w\W]*?\*\/|\/\/[^\n]*\n|\/\/[^\n]*$|"(?:[^"\\]|\\[\w\W])*"|'(?:[^'\\]|\\[\w\W])*'|\s*\.\s*[$\w\.]+/g,
     SPLIT: /[^\w$]+/g,
     KEYWORDS:
@@ -25,62 +26,66 @@ const variable = {
 };
 
 /**
- * A compact, high-performance and full-featured template engine
- * @Author metadream
+ * Template Engine
+ * Quickly parse template strings and files with specific syntax.
+ *
+ * @Author Marco
+ * @Repository https://github.com/metadream/deno-cross
  * @Since 2022-11-09
  */
 export class Engine {
-    // Cache template file and compiled function
+
+    // Engine options
+    private tmplRoot = "";
+    private attributes: Record<string, unknown> = {};
+
+    // Template file and compiled function cache.
     private cache: Record<string, Renderer> = {};
 
-    // Template engine options
-    private tmplRoot = "";
-    private attributes: Record<string, any> = {};
-
-    // Set the root of template files
+    /** Set template root path. */
     init(tmplRoot: string): void {
         this.tmplRoot = tmplRoot;
     }
 
-    // Import attributes to template
+    /** Import global properties and methods for templates. */
     import(attributes: Record<string, unknown>): void {
         Object.assign(this.attributes, attributes);
     }
 
     /**
-     * Compile the template to a function
-     * @param {string} tmpl
-     * @returns {Function} Anonymous function for rendering data
+     * Compile template string into rendering function.
+     * @param {string} template string
+     * @returns {Function} renderer function
      */
     compile(tmpl: string): Renderer {
         const codes: string[] = [];
         tmpl = this.block(tmpl);
         tmpl = this.escape(this.reduce(tmpl))
-            .replace(syntax.INTERPOLATE, (_: string, code: string) => {
-                code = this.unescape(code);
-                codes.push(code);
-                return "'+(" + code + ")+'";
-            })
-            .replace(syntax.CONDITIONAL, (_: string, elseCase: string, code: string) => {
-                if (!code) return this.output(elseCase ? "}else{" : "}");
-                code = this.unescape(code);
-                codes.push(code);
-                return this.output(elseCase ? "}else if(" + code + "){" : "if(" + code + "){");
-            })
-            .replace(syntax.ITERATIVE, (_: string, arrName: string, valName: string, idxName: string) => {
-                if (!arrName) return this.output("}}");
-                codes.push(arrName);
-                const defI = idxName ? "let " + idxName + "=-1;" : "";
-                const incI = idxName ? idxName + "++;" : "";
-                return this.output(
-                    "if(" + arrName + "){" + defI + "for (let " + valName + " of " + arrName + "){" + incI + "",
-                );
-            })
-            .replace(syntax.EVALUATE, (_: string, code: string) => {
-                code = this.unescape(code);
-                codes.push(code);
-                return this.output(code + ";");
-            });
+        .replace(Syntax.INTERPOLATE, (_: string, code: string) => {
+            code = this.unescape(code);
+            codes.push(code);
+            return "'+(" + code + ")+'";
+        })
+        .replace(Syntax.CONDITIONAL, (_: string, elseCase: string, code: string) => {
+            if (!code) return this.output(elseCase ? "}else{" : "}");
+            code = this.unescape(code);
+            codes.push(code);
+            return this.output(elseCase ? "}else if(" + code + "){" : "if(" + code + "){");
+        })
+        .replace(Syntax.ITERATIVE, (_: string, arrName: string, valName: string, idxName: string) => {
+            if (!arrName) return this.output("}}");
+            codes.push(arrName);
+            const defI = idxName ? "let " + idxName + "=-1;" : "";
+            const incI = idxName ? idxName + "++;" : "";
+            return this.output(
+                "if(" + arrName + "){" + defI + "for (let " + valName + " of " + arrName + "){" + incI + "",
+            );
+        })
+        .replace(Syntax.EVALUATE, (_: string, code: string) => {
+            code = this.unescape(code);
+            codes.push(code);
+            return this.output(code + ";");
+        });
 
         let source = "let out='" + tmpl + "';return out;";
         source = this.declare(codes) + source;
@@ -88,22 +93,21 @@ export class Engine {
         try {
             const fn = new Function("data", source);
             return async (data: unknown) => {
-                const attributes = await this.export();
-                data = Object.assign({ ...attributes }, data);
+                data = Object.assign({ ...this.attributes }, data);
                 return fn.call(null, data);
             };
         } catch (e) {
-            e.source = "function anonymous(data) {" + source + "}";
+            console.error("function anonymous(data) {" + source + "}");
             throw e;
         }
     }
 
-    // Render the template text with data
+    /** Render template string with data. */
     render(tmpl: string, data: unknown): Promise<string> {
         return this.compile(tmpl)(data);
     }
 
-    // Render the template file with cache
+    /** Render template file with data. */
     async view(file: string, data: unknown): Promise<string> {
         let render = this.cache[file];
         if (!render) {
@@ -112,37 +116,37 @@ export class Engine {
         return render(data);
     }
 
-    // Load template file recursively
+    /** Load other files referenced in the template file. */
     private async include(file: string): Promise<string> {
         let tmpl = await Deno.readTextFile(resolve(this.tmplRoot, file));
-        while (syntax.PARTIAL.test(tmpl)) {
-            tmpl = await this.replaceAsync(tmpl, syntax.PARTIAL, async (_: string, _file: string) => {
+        while (Syntax.PARTIAL.test(tmpl)) {
+            tmpl = await this.replaceAsync(tmpl, Syntax.PARTIAL, async (_: string, _file: string) => {
                 return await Deno.readTextFile(resolve(this.tmplRoot, _file));
             });
         }
         return tmpl;
     }
 
-    // Replace block holders with block defines
+    /** Replace defined blocks in template string. */
     private block(tmpl: string): string {
         const blocks: Record<string, string> = {};
         return tmpl
-            .replace(syntax.BLOCK_DEFINE, (_, name: string, block) => {
-                blocks[name] = block;
-                return "";
-            })
-            .replace(syntax.BLOCK_HOLDER, (_, name: string) => blocks[name] || "");
+        .replace(Syntax.BLOCK_DEFINE, (_, name: string, block) => {
+            blocks[name] = block;
+            return "";
+        })
+        .replace(Syntax.BLOCK_HOLDER, (_, name: string) => blocks[name] || "");
     }
 
-    // Parse variables as declares in function body header
+    /** Declare all variables in the code uniformly at the beginning of the function body. */
     private declare(codes: string[]): string {
         const varNames = codes.join(",")
-            .replace(variable.REMOVE, "")
-            .replace(variable.SPLIT, ",")
-            .replace(variable.KEYWORDS, "")
-            .replace(variable.NUMBER, "")
-            .replace(variable.BOUNDARY, "")
-            .split(variable.SPLIT2);
+        .replace(Variable.REMOVE, "")
+        .replace(Variable.SPLIT, ",")
+        .replace(Variable.KEYWORDS, "")
+        .replace(Variable.NUMBER, "")
+        .replace(Variable.BOUNDARY, "")
+        .split(Variable.SPLIT2);
 
         const unique: Record<string, boolean> = {};
         const prefixVars = [];
@@ -159,42 +163,33 @@ export class Engine {
         return "";
     }
 
-    // Execute the values of attributes in runtime.
-    private async export(): Promise<Record<string, unknown>> {
-        const attributes: Record<string, unknown> = {};
-        for (const [name, fn] of Object.entries(this.attributes)) {
-            attributes[name] = await fn();
-        }
-        return attributes;
-    }
-
-    // Reduce template text
+    /** Reduce template string */
     private reduce(tmpl: string): string {
         return tmpl.trim()
-            .replace(/<!--[\s\S]*?-->/g, "") // remove html comments
-            .replace(/\/\*[\s\S]*?\*\//g, "") // remove js comments in multiline
-            .replace(/\n\s*\/\/.*/g, "") // remove js comments inline
-            .replace(/(\r|\n)[\t ]+/g, "") // remove leading spaces
-            .replace(/[\t ]+(\r|\n)/g, "") // remove trailing spaces
-            .replace(/\r|\n|\t/g, ""); // remove breaks and tabs
+        .replace(/<!--[\s\S]*?-->/g, "") // remove html comments
+        .replace(/\/\*[\s\S]*?\*\//g, "") // remove js comments in multiline
+        .replace(/\n\s*\/\/.*/g, "") // remove js comments inline
+        .replace(/(\r|\n)[\t ]+/g, "") // remove leading spaces
+        .replace(/[\t ]+(\r|\n)/g, "") // remove trailing spaces
+        .replace(/\r|\n|\t/g, ""); // remove breaks and tabs
     }
 
-    // Escape backslash and single quotes
+    /** Escape backslashes and single quotes. */
     private escape(tmpl: string): string {
         return tmpl.replace(/\\/g, "\\\\").replace(/\'/g, "\\'");
     }
 
-    // Unescape single quotes
+    /** Unescape single quotes. */
     private unescape(tmpl: string): string {
         return tmpl.replace(/\\'/g, "'");
     }
 
-    // Shortcut of ouput
+    /** Shortcut for outputting the function body. */
     private output(code: string): string {
         return "';" + code + "out+='";
     }
 
-    // Override replacement function
+    /** Rewrite the replacement function in asynchronous mode. */
     private async replaceAsync(str: string, regex: RegExp, asyncFn: any) {
         const promises: any = [];
         const replacer: any = (match: any, ...args: any) => {
@@ -205,4 +200,5 @@ export class Engine {
         const data = await Promise.all(promises);
         return str.replace(regex, () => data.shift());
     }
+
 }

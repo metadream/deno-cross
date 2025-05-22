@@ -1,170 +1,279 @@
-import { Cookie, deleteCookie, getCookies, setCookie } from "./deps.ts";
-import { Route } from "./types.ts";
-import { Server } from "./server.ts";
+import { type Cookie, getCookies, setCookie, deleteCookie } from "@std/http/cookie";
+import { RedirectStatus, StatusCode, STATUS_CODE } from "@std/http/status";
+import { Session } from "./types.ts";
 
 /**
- * Spring Application Context
- * enhance native request and response
- * @Author metadream
- * @Since 2022-11-09
+ * Application Context Aggregation Classes
+ * Includes request, response, cookie and session.
+ *
+ * @Author Marco
+ * @Repository https://github.com/metadream/deno-cross
+ * @Since 2025-05-18
  */
-export class Context {
-    // Allow adding custom properties
-    [index: string]: unknown;
+export class HttpContext {
 
-    json: () => Promise<unknown>;
-    text: () => Promise<string>;
-    blob: () => Promise<Blob>;
-    form: () => Promise<FormData>;
-    buffer: () => Promise<ArrayBuffer>;
+    request: HttpRequest;
+    response: HttpResponse;
+    cookie: HttpCookie;
+    session: HttpSession;
 
-    addr: Deno.NetAddr;
-    method: string;
-    url: string;
-    origin: string;
-    protocol: string;
-    host: string;
-    hostname: string;
-    port: string;
-    path: string;
+    constructor(input: Request, info: Deno.ServeHandlerInfo) {
+        this.request = new HttpRequest(input, info);
+        this.response = new HttpResponse();
+        this.cookie = new HttpCookie(this.request.headers, this.response.headers);
+        this.session = new HttpSession(this.cookie);
+    }
 
+}
+
+/**
+ * HTTP Request Object
+ * Inherit the native Request and extend some properties.
+ *
+ * @Author Marco
+ * @Repository https://github.com/metadream/deno-cross
+ * @Since 2025-05-15
+ */
+export class HttpRequest extends Request {
+
+    // @example
+    // ```text
+    // uri.href: https://example.com:3000/users?page=1
+    // uri.origin: https://example.com:3000
+    // uri.protocol: https:
+    // uri.host: example.com:3000
+    // uri.hostname: example.com
+    // uri.port: 3000
+    // uri.pathname: /users
+    // ```
+    uri: URL;
+
+    // The unencoded version of an encoded component of a URI
+    pathname: string;
+
+    // The search params of decoded query arguments contained in a URI.
     query: Record<string, string | number | boolean> = {};
-    params: Record<string, string | number | boolean> = {};
-    serve: (ctx: Context) => Promise<ArrayBuffer | undefined>;
-    render: (tmpl: string, data: unknown) => Promise<string>;
-    view: (file: string, data: unknown) => Promise<string>;
-    template?: string;
-    isStaticPath?: boolean;
 
-    req: Request;
-    private res: {
-        headers: Headers;
-        status?: number;
-        statusText?: string;
-    };
+    constructor(input: Request, info: Deno.ServeHandlerInfo) {
+        super(input);
+        if (this.isNetAddr(info.remoteAddr)) {
+            this.headers.set("Remote-Addr", info.remoteAddr.hostname);
+        }
 
-    // REQUEST ////////////////////////////////////////////////////////////////
-
-    // Creates context instance for each request
-    constructor(server: Server, req: Request, info: Deno.ServeHandlerInfo) {
-        this.req = req;
-        this.res = { headers: new Headers() };
-        this.serve = server.handleResource;
-        this.render = server.engine.render.bind(server.engine);
-        this.view = server.engine.view.bind(server.engine);
-
-        this.addr = info.remoteAddr;
-        this.method = req.method;
-        this.json = () => req.json();
-        this.text = () => req.text();
-        this.blob = () => req.blob();
-        this.form = () => req.formData();
-        this.buffer = () => req.arrayBuffer();
-
-        const url = new URL(req.url);
-        this.url = url.href; // ex. https://example.com:3000/users?page=1
-        this.origin = url.origin; //ex. https://example.com:3000
-        this.protocol = url.protocol; //ex. https:
-        this.host = url.host; // ex. example.com:3000
-        this.hostname = url.hostname; //ex. example.com
-        this.port = url.port; // ex. 3000
-        this.path = url.pathname; // ex. /users
-
-        // Set query string parameters
-        for (const [k, v] of url.searchParams) { // ex. ?page=1
+        // Parse the request url
+        this.uri = new URL(input.url);
+        this.pathname = decodeURIComponent(this.uri.pathname);
+        // Parse the query string
+        for (const [k, v] of this.uri.searchParams) {
             this.query[k] = v;
         }
     }
 
-    set route(route: Route) {
-        this.template = route.template;
-        this.params = route.params || {};
+    /** Determines whether the address is a network address */
+    private isNetAddr(addr: Deno.Addr): addr is Deno.NetAddr {
+        return "hostname" in addr && "port" in addr;
     }
 
-    has(name: string): boolean {
-        return this.req.headers.has(name);
-    }
+}
 
-    get(name: string): string | null {
-        return this.req.headers.get(name);
-    }
+/**
+ * HTTP Response Object
+ * Since the native response cannot be changed if it's created, inherit ResponseInit
+ * for route method updating and finally output all at once.
+ *
+ * @Author Marco
+ * @Repository https://github.com/metadream/deno-cross
+ * @Since 2025-05-15
+ */
+export class HttpResponse implements ResponseInit {
 
-    set(name: string, value: string): void {
-        this.res.headers.set(name, value);
-    }
+    headers: Headers = new Headers();
+    status: StatusCode = STATUS_CODE.OK;
+    statusText?: string;
+    body?: BodyInit | Response | null | undefined;
 
-    get cookies() {
-        const reqHeaders = this.req.headers;
-        const resHeaders = this.res.headers;
-
-        return {
-            get(name?: string): string | Record<string, string> {
-                const cookies = getCookies(reqHeaders);
-                return name ? cookies[name] : cookies;
-            },
-            set(name: string, value: string, options?: Cookie): void {
-                const cookie = { name, value };
-                Object.assign(cookie, options);
-                setCookie(resHeaders, cookie);
-            },
-            delete(name: string, attributes?: { path?: string; domain?: string }): void {
-                deleteCookie(resHeaders, name, attributes);
-            },
-        };
-    }
-
-    // RESPONSE ///////////////////////////////////////////////////////////////
-
-    set status(status: number) {
-        this.res.status = status;
-    }
-
-    get status() {
-        return this.res.status || 0;
-    }
-
-    set statusText(text: string) {
-        this.res.statusText = text;
-    }
-
-    get statusText() {
-        return this.res.statusText || "";
-    }
-
-    // Permanent redirect codes: 301, 308
-    // Temporary redirect codes: 302，303，307 (default)
-    redirect(url: string, status: 301 | 302 | 303 | 307 | 308 = 307): void {
-        this.res.status = status;
-        this.res.headers.set("Location", url);
-    }
-
-    // Build the response instance
-    // BodyInit: Blob, BufferSource, FormData, ReadableStream, URLSearchParams, or USVString
-    respond(body: BodyInit | Response | null | undefined): Response {
-        if (body === undefined || body === null || this.status === 204 || this.status === 304) {
-            return new Response(null, this.res);
+    /** Forced redirection (supported status code: 301 | 302 | 303 | 307 | 308) */
+    redirect(status: RedirectStatus | string, url?: string): void {
+        if (typeof status === "number") {
+            this.status = status;
+            if (!url) throw new HttpError(STATUS_CODE.NotAcceptable, "URL must be provided for redirect");
+        } else {
+            this.status = STATUS_CODE.TemporaryRedirect;
+            url = status;
         }
+        this.headers.set("Location", url);
+    }
 
-        // It's a complete native response
+    /** Build a native response */
+    build(): Response {
+        let { body } = this;
+        // If the response body is null or the status code represents an empty value
+        if (body === undefined || body === null || this.isEmptyStatus()) {
+            return new Response(null, this);
+        }
+        // If the response body is a native response instance
         if (body instanceof Response) {
-            return body.status === 204 || body.status === 304 ? new Response(null, body) : body;
+            return this.isEmptyStatus() ? new Response(null, body) : body;
         }
-
-        let contentType = null;
-        if (typeof body === "string") {
-            contentType = /^\s*</.test(body) ? "text/html" : "text/plain";
-        } else if (
-            !(body instanceof Blob) && !(body instanceof Uint8Array) &&
-            !(body instanceof FormData) && !(body instanceof ReadableStream) &&
-            !(body instanceof URLSearchParams)
-        ) {
-            contentType = "application/json";
+        // If no content type is set and the response body is an plain object,
+        // output in JSON format
+        if (!this.headers.has("Content-Type") && this.isPlainObject()) {
+            this.headers.set("Content-Type", "application/json; charset=utf-8")
             body = JSON.stringify(body);
         }
-
-        if (contentType && !this.res.headers.has("content-type")) {
-            this.res.headers.set("content-type", `${contentType}; charset=utf-8`);
-        }
-        return new Response(body, this.res);
+        // Build a native response
+        return new Response(body, this);
     }
+
+    /** Determine whether the status represents an empty value */
+    isEmptyStatus(): boolean {
+        return this.status === STATUS_CODE.NoContent || this.status === STATUS_CODE.NotModified;
+    }
+
+    /** Determines whether the response body is a plain object */
+    isPlainObject(): boolean {
+        const b = this.body;
+        return !(
+            b instanceof Blob || b instanceof FormData || b instanceof Uint8Array ||
+            b instanceof ReadableStream || b instanceof URLSearchParams
+        );
+    }
+
+}
+
+/**
+ * Http Cookie Object
+ * A simple wrapper for standard cookies
+ *
+ * @Author Marco
+ * @Repository https://github.com/metadream/deno-cross
+ * @Since 2025-05-15
+ */
+export class HttpCookie {
+    private reqHeaders!: Headers;
+    private resHeaders!: Headers;
+
+    constructor(reqHeaders: Headers, resHeaders: Headers) {
+        this.reqHeaders = reqHeaders;
+        this.resHeaders = resHeaders;
+    }
+
+    /** Get cookie by name from request headers */
+    get(name?: string): string | Record<string, string> {
+        const cookies = getCookies(this.reqHeaders);
+        return name ? cookies[name] : cookies;
+    }
+
+    /** Set cookie to response headers */
+    set(name: string, value: string, options?: Cookie): void {
+        const cookie = { name, value };
+        Object.assign(cookie, options);
+        setCookie(this.resHeaders, cookie);
+    }
+
+    /** Delete cookie by name in the response headers */
+    delete(name: string, attributes?: { path?: string; domain?: string }): void {
+        deleteCookie(this.resHeaders, name, attributes);
+    }
+
+}
+
+/**
+ * Http Session Object
+ * Using cookies and memory storage to create sessions
+ *
+ * @Author Marco
+ * @Repository https://github.com/metadream/deno-cross
+ * @Since 2025-05-15
+ */
+export class HttpSession {
+
+    private static MAX_AGE = 3600; // seconds (default expired in 1 hour)
+    private static SESS_KEY = "SESSION_ID";
+    private static SESS_STORE = new Map<string, Session>();
+
+    private cookie: HttpCookie;
+    private readonly id: string;
+
+    /** Automatically clean up expired sessions */
+    static {
+        setInterval(() => {
+            const now = Date.now();
+            for (const [id, session] of HttpSession.SESS_STORE.entries()) {
+                if (session.expires < now) {
+                    HttpSession.SESS_STORE.delete(id);
+                }
+            }
+        }, 1000);
+    }
+
+    constructor(cookie: HttpCookie) {
+        this.cookie = cookie;
+        this.id = cookie.get(HttpSession.SESS_KEY) as string || crypto.randomUUID();
+        const expires = Date.now() + HttpSession.MAX_AGE * 1000;
+
+        // Create a new session if it does not exist
+        let session = HttpSession.SESS_STORE.get(this.id);
+        if (!session) {
+            session = { data: {}, expires };
+            HttpSession.SESS_STORE.set(this.id, session);
+            cookie.set(HttpSession.SESS_KEY, this.id);
+        }
+        // Refresh the active time
+        session.expires = expires;
+    }
+
+    get<T>(key: string): T | undefined {
+        const session = HttpSession.SESS_STORE.get(this.id);
+        return session?.data[key] as T;
+    }
+
+    set(key: string, value: unknown): void {
+        const session = HttpSession.SESS_STORE.get(this.id);
+        if (session) {
+            session.data[key] = value;
+            session.expires = Date.now() + HttpSession.MAX_AGE * 1000;
+        }
+    }
+
+    delete(key: string): void {
+        const session = HttpSession.SESS_STORE.get(this.id);
+        if (session) {
+            delete session.data[key];
+        }
+    }
+
+    destroy(): void {
+        HttpSession.SESS_STORE.delete(this.id);
+        this.cookie.delete(HttpSession.SESS_KEY);
+    }
+
+}
+
+/**
+ * HTTP Error Object (extended status code attribute)
+ *
+ * @Author Marco
+ * @Repository https://github.com/metadream/deno-cross
+ * @Since 2025-05-15
+ */
+export class HttpError extends Error {
+    status: StatusCode;
+
+    constructor(status: StatusCode | string, message: string = "Internal Server Error") {
+        super(message);
+
+        if (typeof status === "number") {
+            this.status = status;
+        } else {
+            this.status = STATUS_CODE.InternalServerError;
+            this.message = status;
+        }
+    }
+
+    /** JSON.stringify() will automatically call this method for serialization. */
+    toJSON(): {} {
+        return { status: this.status, message: this.message };
+    }
+
 }

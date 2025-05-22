@@ -1,19 +1,22 @@
-import { Route } from "./types.ts";
+import { DynamicRoute } from "./types.ts";
 
 /**
- * Core Router for adding and finding routes
- * @Author metadream
+ * Core Router
+ *
+ * @Author Marco
+ * @Repository https://github.com/metadream/deno-cross
  * @Since 2022-11-09
  *
- * @example /literal
- * @example /:user
- * @example /:users?
- * @example /:user(\\d+)
- * @example /*
+ * @example `/literal`
+ * @example `/:user`
+ * @example `/:users?`
+ * @example `/:user(\\d+)`
+ * @example `/*`
  */
 export class Router {
-    private SORT_RULE = ["", "*", ":"];
-    private routes: Route[] = [];
+
+    private routes: DynamicRoute[] = [];
+    private sortRule = ["", "*", ":"];
     private sorted = false;
 
     /**
@@ -22,7 +25,7 @@ export class Router {
      * @param {string|RegExp} path
      * @param {Function} handler
      */
-    add(route: Route): void {
+    add(route: DynamicRoute): void {
         route.pattern = this.parse(route.path);
         this.routes.push(route);
     }
@@ -33,7 +36,7 @@ export class Router {
      * @param {string} url
      * @returns
      */
-    find(method: string, url: string): Route | undefined {
+    find(method: string, url: string): DynamicRoute | undefined {
         if (!this.sorted) {
             this.sorted = true;
             this.sortRoutes();
@@ -53,9 +56,9 @@ export class Router {
         }
     }
 
-    // Sort routes by specific rule
+    /** Sort the routes by built-in rule */
     private sortRoutes(): void {
-        this.routes.sort((a: Route, b: Route) => {
+        this.routes.sort((a: DynamicRoute, b: DynamicRoute) => {
             const aLen = a.path.length;
             const bLen = b.path.length;
             const maxLen = Math.max(aLen, bLen);
@@ -65,21 +68,22 @@ export class Router {
                 const bChar = b.path.charAt(i);
                 if (aChar == bChar) continue;
 
-                const aIndex = this.SORT_RULE.findIndex((v) => v == aChar);
-                const bIndex = this.SORT_RULE.findIndex((v) => v == bChar);
+                const aIndex = this.sortRule.findIndex((v) => v == aChar);
+                const bIndex = this.sortRule.findIndex((v) => v == bChar);
                 return aIndex - bIndex;
             }
             return 0;
         });
     }
 
-    // Parse route path to regex pattern
+    /** Parse th pattern to regular expression */
     private parse(pattern: string | RegExp): RegExp {
         return pattern instanceof RegExp ? pattern : new RegExp(
             "^" + pattern
-                .replace(/\/\*($|\/)/g, "/(?<wildcard>.*)$1")
-                .replace(/:(\w+)(\(\S+\))?/g, (_, k, r) => `(?<${k}>${r ? r : "([^/]+?)"})`) +
-                "$",
+            .replace(/\/\*($|\/)/g, "/(?<wildcard>.*)$1")
+            .replace(/:(\w+)(\(\S+\))?/g, (_, k, r) => `(?<${k}>${r ? r : "([^/]+?)"})`) +
+            "$",
         );
     }
+
 }

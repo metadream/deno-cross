@@ -1,269 +1,202 @@
-# Deno-Spring
+# Cross Web Framework
 
-Deno-Spring is a compact, high-performance and full-featured web server framework based on Deno. It can be developed quickly using annotations(decorators) like Java SpringBoot framework.
+Cross is a compact, high-performance and full-featured web server framework based on Deno. It is designed with
+ease of use in mind and centered around decorators, it provides essential functionalities required by a foundational
+framework, including a template engine, route control, interceptors, error handling, dependency injection, and more.
 
-## Shortcut mode
+## Installation
 
-Create a `mod.ts` file and write the following content, then run `deno run --allow-all mod.ts`.
+Enter your project root directory and add Cross framework dependencies:
 
-```ts
-import { Bootstrap, Server } from "https://deno.land/x/spring/mod.ts";
-
-@Bootstrap
-export default class {
-    constructor(app: Server) {
-        app.get("/:id", (ctx) => {
-            return "hello " + ctx.params.id;
-        });
-    }
-}
+```bash
+deno add jsr:@focal/cross
 ```
 
-Visit http://localhost:3000/jack, `hello jack` will be returned.
+Although TypeScript 5.0+ supports ECMAScript standard decorators (Stage 3 proposal), the new decorators are currently
+incompatible with `--emitDecoratorMetadata` and do not support parameter decorators. Therefore, this framework still
+uses the legacy decorator syntax, and requires additional compilation options in `deon.json`. The final complete
+configuration is as follows:
 
-Note that features such as components, template engine and unified error handling cannot be used in shortcut mode, you must solve them in other ways.
-
-## Decorator mode
-
-Decorator mode and shortcut mode do not conflict and can be used together. The only difference in performance between the two is that the latter needs to parse all decorators at startup, it is almost the same in runtime.
-
-In decorator mode, you must first create a configuration file named "deno.jsonc" in the project root with the following content:
-
-```
+```json
 {
-  "compilerOptions": {
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-  }
+    "compilerOptions": {
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+    },
+    "imports": {
+        "@focal/cross": "jsr:@focal/cross@^1.0.0"
+    }
 }
 ```
 
-Then modify the content of `mod.ts` as follows, in order to inject all components with decorators into the application by `app.modules` method.
+## Get Started
 
-```ts
-@Bootstrap
+1. Create `main.ts` (or any other file) as the application entry point. Controllers must be imported in the entry file
+   to activate decorators  (Note: There's no need to manually import other decorator-dependent modules)
+
+```typescript
+import { Application } from "@focal/cross";
+import { Cross } from "@focal/cross/decorators";
+import "./controller.ts";
+
+@Cross
 export default class {
-    constructor(app: Server) {
-        app.modules(Authenticator, ErrorController, UserController, UserService);
+    constructor(app: Application) {
+        app.run();
     }
 }
 ```
 
-### 1. Interceptor
+2. Create `controller.ts` and `service.ts`. Parameters on route methods are optional and order-independent, with details
+   as follows:
 
-The interceptor is not required, but if there is one, the methods in it will be executed in order. If the interceptor method returns true, it means that the interception is successful and other methods and routes will no longer be executed.
+```typescript
+import { UserService } from "./service.ts";
 
-```ts
-// Authenticator.ts
-@Interceptor
-export class Authenticator {
-    cors(ctx: Context): boolean {
-        // do something first
-        return true;
-    }
-    auth(ctx: Context): boolean {
-        // do something second
-        return false;
-    }
-}
-```
-
-### 2. ErrorHandler
-
-If an error handler component is defined, all errors within the framework will be handled by it.
-
-```ts
-// ErrorController.ts
-@Component
-export class ErrorController {
-    @ErrorHandler
-    error(ctx: Context, err: Error) {
-        return {
-            status: ctx.status,
-            message: err.message,
-        };
-    }
-}
-```
-
-### 3. Controller
-
-Create a routing controller and inject a service class.
-
-```ts
-// UserController.ts
-@Controller("/prefix")
+@Controller("/user")
 export class UserController {
-    @Autowired
-    userService!: UserService;
-
-    @Get("/:id")
-    getUser(ctx: Context) {
-        return this.userService.getUser(ctx.params.id);
+    @Autowired                  // Injects UserService instance
+    private userService!: UserService;
+    
+    @Get("/:id")                // Route path
+    @Template("user.html")      // Template path (if set, automatically renders template with return value; otherwise returns JSON)
+    getUser(
+        @Param id: number,      // Injects route parameter
+        @Query name: string,    // Injects query parameter
+        @Body user: User,       // Injects request body
+        request: HttpRequest,   // Injects request object
+        response: HttpResponse, // Injects response object
+        cookie: HttpCookie,     // Injects cookies
+        session: HttpSession    // Injects session
+    ): User {
+        return this.userService.getUser(id);
     }
 }
 ```
 
-Note that if you want to use the service class in the constructor, you need to refer to the following usage:
-
-```ts
-// UserController.ts
-@Controller("/prefix")
-export class UserController {
-    constructor(public userService: UserService) {
-        this.userService.init();
-    }
-
-    @Get("/:id")
-    getUser(ctx: Context) {
-        return this.userService.getUser(ctx.params.id);
-    }
-}
-```
-
-### 4. Component
-
-```ts
-// UserService.ts
+```typescript
 @Component
 export class UserService {
-    getUser(id: string) {
-        // do something
+    getUser(id: number): User {
+        return { id, name: "Marco" }
     }
 }
 ```
 
-### 5. View
+3. Start the application with `deno run --allow-all main.ts`.
 
-View decorator are used to decorate controller methods, and its parameter is the template file path. After adding it, the built-in template engine will be used for rendering automatically. First you can set the template root directory in the startup class.
+## Advanced Usage
 
-```ts
-// mod.ts
-@Bootstrap
-export default class {
-    constructor(app: Server) {
-        app.views("./views");  // Add template root directory
-        app.modules(Authenticator, ErrorController, UserController, UserService);
-    }
-}
+1. Loading Configuration Files: Add the following line in the main file constructor, then you can inject the Config
+   instance in other modules:
 
-// UserController.ts
-@Controller("/prefix")
-export class UserController {
-    @Autowired
-    userService!: UserService;
-
-    @Get("/:id")
-    @View("index.html") // or @View("./project/path/index.html") if the root directory is not set
-    getUser(ctx: Context) {
-        return this.userService.getUser(ctx.params.id);
-    }
-}
-
-// index.html
-// Assume that the user object is { name, age }
-<h1>Hello, {{= name }}, Your age is {{= age }}</h1>
+```typescript
+// main.ts
+app.config("./config.yaml");
 ```
 
-### 6. Attribute
-
-If you want to use global properties or methods in the template, you can define an attribute decorator. The method name is the attribute name.
-
-```ts
-// Attributes.ts
-@Component
-export class Attributes {
-    @Attribute
-    appName() {
-        return "spring";
-    }
-}
-
-// index.html
-<h1>Hello, {{= appName }}</h1>
+```typescript
+// service.ts
+@Autowired
+private config!: Config;
 ```
 
-## API Reference
+2. Setting Template Options: Add the following line in the main file constructor. The first parameter is the root
+   directory of templates (after setting this, the @Template decorator only needs a relative path). The second parameter
+   injects global properties or methods into templates, which can be accessed in all templates.
 
-### app: Server
+```typescript
+// main.ts
+app.templates("./example/templates", {});
+```
 
-- `app.port` HTTP server listening port, default 3000.
-- `app.hostname` HTTP server hostname, default "0.0.0.0"
-- `app.views` The root of template files, default ""
-- `app.assets` The paths of static resources
-- `app.modules` Load classes that need to use decorator in the application
-- `app.get`, `app.post`, `app.put`... Request methods with `(path, handler)` parameters
+3. Serving Static Resources: Add the following line in the main file constructor. The first parameter is the request
+   path for resources, and the second is the actual file path.
+
+```typescript
+// main.ts
+app.resources("/assets", "./example/assets");
+```
+
+4. Setting Interceptors & Global Error Handling: Create a `midware.ts` file. Both @Interceptor and @ErrorHandler
+   decorators must be inside an @Middleware module to take effect:
+
+```typescript
+@Middleware
+export class Midware {
+
+    // Multiple interceptors can be defined - execution order follows numerical value (smallest first)
+    @Interceptor()  
+    auth(request: HttpRequest, session: HttpSession) {  // 可注入参数除了没有装饰器参数外，和控制器路由一致
+        if (request.pathname != "/user/login") {
+            const user = session.get("principal");
+            Assert.isTrue(user, STATUS_CODE.Unauthorized);
+        }
+    }
+
+    // The single global error handler. Parameter meaning:
+    // If response content-type is text/html, renders the error.html template
+    @ErrorHandler("error.html")  
+    error(error: HttpError) {  // // Parameters match controller routes (plus HttpError)
+        const err: any = error.toJSON();
+        err.timestamp = Date.now();
+        return err;
+    }
+}
+```
+
+## API References
+
+### Application
+- `app.config(path:string)`
+- `app.resources(fsPath: string, fsRoot: string)`
+- `app.templates(path:string, attributes?:any)`
+- `app.run(hostOrPort?: string | number, port?: number)`
 
 ### Decorators
+| name           | type              | parameters | parameter description    |
+|----------------|-------------------|------------|--------------------------|
+| @Cross         | ClassDecorator    | none       |                          |
+| @Middleware    | ClassDecorator    | none       |                          |
+| @Controller    | ClassDecorator    | string     | The prefix of route path |
+| @Component     | ClassDecorator    | none       |                          |
+| @Autowired     | PropertyDecorator | none       |                          |
+| @Get           | MethodDecorator   | string     | Route path               |
+| @Post          | MethodDecorator   | string     | Route path               |
+| @Put           | MethodDecorator   | string     | Route path               |
+| @Delete        | MethodDecorator   | string     | Route path               |
+| @Patch         | MethodDecorator   | string     | Route path               |
+| @Head          | MethodDecorator   | string     | Route path               |
+| @Options       | MethodDecorator   | string     | Route path               |
+| @Template      | MethodDecorator   | string     | Template file path       |
+| @Interceptor   | MethodDecorator   | number     | Execution order          |
+| @ErrorHandler  | MethodDecorator   | none       |                          |
 
-| Name          | Type              | Parameters | description                   |
-| ------------- | ----------------- | ---------- | ----------------------------- |
-| @Bootstrap    | ClassDecorator    |            | Application startup class     |
-| @Interceptor  | ClassDecorator    |            | Define a interceptor          |
-| @Component    | ClassDecorator    |            | Define a component            |
-| @Controller   | ClassDecorator    | string     | Prefix for request route      |
-| @Autowired    | PropertyDecorator |            | Inject components             |
-| @ErrorHandler | MethodDecorator   |            |                               |
-| @Attribute    | MethodDecorator   |            |                               |
-| @View         | MethodDecorator   | string     | Template file path            |
-| @Get          | MethodDecorator   | string     | Route path                    |
-| @Post         | MethodDecorator   | string     | Route path                    |
-| @Put          | MethodDecorator   | string     | Route path                    |
-| @Delete       | MethodDecorator   | string     | Route path                    |
-| @Patch        | MethodDecorator   | string     | Route path                    |
-| @Head         | MethodDecorator   | string     | Route path                    |
-| @Options      | MethodDecorator   | string     | Route path                    |
+### HttpRequest
+In addition to inheriting all properties and methods from the native Request object, the following three extended
+properties are provided for convenient access:
+- `uri: URL`
+- `pathname: string`
+- `query: {}`
 
-### Context
+### HttpResponse
+Extending the native ResponseInit, the framework provides the following additional configurable properties:
+- `headers?: HeadersInit`
+- `status?: number`
+- `statusText?: string`
+- `body?: BodyInit | Response | null | undefined`
 
-Context is an instance passed to controllers, Interceptors and error handler, it contains properties and methods related to requests and responses.
+### HttpCookie
+- `get(name?: string)`
+- `set(name: string, value: string, options?: Cookie)`
+- `delete(name: string, attributes?: { path?: string; domain?: string })`
 
-#### Request Properties
+### HttpSession
+- `get<T>(key: string)`
+- `set(key: string, value: unknown)`
+- `delete(key: string)`
 
-- `ctx.params` The parameters on route path
-- `ctx.query` The parameters on query string
-- `ctx.url` ex. https://example.com:3000/users?page=1
-- `ctx.origin` ex. https://example.com:3000
-- `ctx.protocol` ex. https:
-- `ctx.host` ex. example.com:3000
-- `ctx.hostname` ex. example.com
-- `ctx.port` ex. 3000
-- `ctx.path` ex. /users
-- `ctx.method` Standard http request methods
-- `ctx.has`, `ctx.get` Shortcuts for obtain reqeust headers. Refer to https://deno.com/deploy/docs/runtime-headers
-- `ctx.cookies` Including one method to get request cookie:
-  `ctx.cookies.get(name)`
-- `ctx.text`, `ctx.json`, `ctx.form`, `ctx.blob`, `ctx.buffer` Promised methods to parse request body.
-
-#### Response Properties
-
-- `ctx.status`
-- `ctx.status=`
-- `ctx.statusText`
-- `ctx.statusText=`
-- `ctx.cookies` Including two methods to operate response cookie: `set(name, value)`,`delete(name)`
-
-#### Response Methods
-
-- `ctx.set(name, value)` The following 3 methods are used to manipulate response headers
-- `ctx.redirect(url[, status])` Redirect url with default status code 307.
-
-#### Utils
-
-- `ctx.serve(staticFile)` Handle static resources and return `ArrayBuffer`
-- `ctx.render(tmplText, data)` Render template text, usually not needed.
-- `ctx.view(tmplFile, data)` If the controller method does not add a `@View` decorator, you can call this method to return the rendered text content.
-
-#### Return types
-
-Controller methods are allowed to return the following object types:
-
-- `BodyInit`: Blob, BufferSource, FormData, ReadableStream, URLSearchParams, or USVString
-- `Response`: Native response instance.
-
-## Built-in template engine syntax
-
-The built-in template engine refers to [doT](https://github.com/olado/doT) and [EasyTemplateJS](https://github.com/ushelp/EasyTemplateJS). It can be used as a independency feature.
+## Template Syntax
 
 - `{{= }}` Interpolation.
 
@@ -307,7 +240,7 @@ The above two syntaxes can belong to two different files and only need to be inc
 {{< }}
 ```
 
-- `{{@ }}` Partial including in layout mode. You must be rendered by `view(file, data)` method.
+- `{{@ }}` Partial including in layout mode.
 
 ```
 // header.html
@@ -316,23 +249,3 @@ The above two syntaxes can belong to two different files and only need to be inc
 // index.html
 {{@ header.html }}
 ```
-
-## Methods
-
-- `init(templateRoot: string)` Initialize custom options（not necessary). relative to the project root, default ""
-- `import(attribute: object)` Custom global properties or functions, default {}
-- `compile(tmpl)` Compile the specify template text to a function.
-- `render(tmpl, data)` Compile and render the template with data.
-- `view(file, data)` Render the template file with data (using cache).
-
-### Reserved symbols
-
-- `{{! }}`
-- `{{# }}`
-- `{{$ }}`
-- `{{% }}`
-- `{{^ }}`
-- `{{& }}`
-- `{{+ }}`
-- `{{- }}`
-- `{{* }}`

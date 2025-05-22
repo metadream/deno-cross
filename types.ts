@@ -1,126 +1,52 @@
-import { Context } from "./context.ts";
+/** Route handler */
+export type RouteHandler = (...args: any[])
+    => BodyInit | null | undefined | Promise<BodyInit | null | undefined>
 
-// Template render function
-export type Renderer = (data: unknown) => Promise<string>;
+/** Session object */
+export type Session = {
+    data: Record<string, unknown>;
+    expires: number;
+}
 
-// Interceptor callback function
-export type Interceptor = (ctx: Context) => boolean | Promise<boolean>;
-
-// Route callback function
-export type RouteHandler = (
-    ctx: Context,
-    err?: Error,
-) => void | BodyInit | Response | null | undefined | Promise<BodyInit | Response | null | undefined>;
-
-// Decorator entity
-export type Decorator = {
+/** Route handler parameter */
+export type Parameter = {
+    index: number;
     name: string;
-    param?: string;
-    method?: string;
-    fn?: RouteHandler;
-    relname?: string | symbol;
-    // deno-lint-ignore no-explicit-any
-    reltype?: any;
-};
+    type: unknown;
+    decorator?: string;
+}
 
-// Route entity
-export type Route = {
+/** Base route */
+export interface BaseRoute {
+    handler: RouteHandler;
+    parameters: Parameter[];
+}
+
+/** Dynamic route */
+export interface DynamicRoute extends BaseRoute {
     method: string;
     path: string;
-    handler: RouteHandler;
     template?: string;
     pattern?: RegExp;
     params?: Record<string, string>;
-};
-
-// Custom http error
-export class HttpError extends Error {
-    status: number;
-    constructor(message: string, status?: number) {
-        super(message);
-        this.status = !status || status < 400 || status > 511 ? HttpStatus.INTERNAL_SERVER_ERROR : status;
-    }
 }
 
-// Request methods
-export const enum Method {
-    GET = "GET",
-    POST = "POST",
-    PUT = "PUT",
-    DELETE = "DELETE",
-    PATCH = "PATCH",
-    HEAD = "HEAD",
-    OPTIONS = "OPTIONS",
+/** Interceptor route */
+export interface InterceptorRoute extends BaseRoute {
+    order: number;
 }
 
-// Common HTTP status codes
-export const enum HttpStatus {
-    SUCCESS = 200,
-    NO_CONTENT = 204,
-
-    BAD_REQUEST = 400,
-    UNAUTHORIZED = 401,
-    FORBIDDEN = 403,
-    NOT_FOUND = 404,
-    METHOD_NOT_ALLOWED = 405,
-    NOT_ACCEPTABLE = 406,
-    REQUEST_TIMEOUT = 408,
-    PAYLOAD_TOO_LARGE = 413,
-    UNSUPPORTED_MEDIA_TYPE = 415,
-    TOO_MANY_REQUESTS = 429,
-
-    INTERNAL_SERVER_ERROR = 500,
+/** Error route */
+export interface ErrorRoute extends BaseRoute {
+    template?: string;
 }
 
-// Common mimetypes
-export const Mime: Record<string, string> = {
-    ".htm": "text/html; charset=utf-8",
-    ".html": "text/html; charset=utf-8",
-    ".xml": "text/xml; charset=utf-8",
-    ".css": "text/css; charset=utf-8",
-    ".txt": "text/plain; charset=utf-8",
-    ".log": "text/plain; charset=utf-8",
-    ".ini": "text/plain; charset=utf-8",
-    ".md": "text/markdown; charset=utf-8",
-    ".yaml": "text/yaml; charset=utf-8",
-    ".yml": "text/yaml; charset=utf-8",
-    ".conf": "text/plain; charset=utf-8",
-    ".json": "application/json; charset=utf-8",
-    ".js": "application/javascript; charset=utf-8",
-    ".jsx": "text/jsx; charset=utf-8",
-    ".ts": "text/typescript; charset=utf-8",
-    ".tsx": "text/tsx; charset=utf-8",
-    ".mjs": "application/javascript; charset=utf-8",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".webp": "image/webp",
-    ".svg": "image/svg+xml",
-    ".ico": "image/x-icon",
-    ".tif": "image/tiff",
-    ".heic": "image/heic",
-    ".heif": "image/heif",
-    ".mid": "audio/midi",
-    ".midi": "audio/midi",
-    ".mp3": "audio/mp3",
-    ".mp4a": "audio/mp4",
-    ".m4a": "audio/mp4",
-    ".ogg": "audio/ogg",
-    ".wav": "audio/wav",
-    ".webm": "audio/webm",
-    ".aac": "audio/x-aac",
-    ".flac": "audio/x-flac",
-    ".mp4": "video/mp4",
-    ".mp4v": "video/mp4",
-    ".mkv": "video/x-matroska",
-    ".mov": "video/quicktime",
-    ".otf": "font/otf",
-    ".ttf": "font/ttf",
-    ".woff": "font/woff",
-    ".woff2": "font/woff2",
-    ".jar": "application/java-archive",
-    ".war": "application/java-archive",
-    ".gz": "application/gzip",
-    ".zip": "application/zip",
-};
+/** Classes that can be created by `new` */
+export interface Constructor<T = object> {
+    new(...args: any[]): T;
+}
+
+/** Config class that can be injected. */
+export class Config {
+    [index: string]: any;
+}
