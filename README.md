@@ -87,7 +87,19 @@ export class UserService {
 
 ## Advanced Usage
 
-1. Loading Configuration Files: Add the following line in the main file constructor, then you can inject the Config
+1. Quickly Add Simple Routes: Add the following line in the main file constructor, then you can add the simple routes.
+   Note: Simple route handlers only take **HttpContext** as a fixed parameter and cannot inject additional parameters
+   like controllers.
+
+```typescript
+// main.ts
+app.get("/test/:id", (ctx: HttpContext) => {
+  const { request, response, cookie, session } = ctx;
+  console.log(request.params.id);
+});
+```
+
+2. Loading Configuration Files: Add the following line in the main file constructor, then you can inject the Config
    instance in other modules:
 
 ```typescript
@@ -101,7 +113,7 @@ app.config("./config.yaml");
 private config!: Config;
 ```
 
-2. Setting Template Options: Add the following line in the main file constructor. The first parameter is the root
+3. Setting Template Options: Add the following line in the main file constructor. The first parameter is the root
    directory of templates (after setting this, the @Template decorator only needs a relative path). The second parameter
    injects global properties or methods into templates, which can be accessed in all templates.
 
@@ -110,7 +122,7 @@ private config!: Config;
 app.templates("./example/templates", {});
 ```
 
-3. Serving Static Resources: Add the following line in the main file constructor. The first parameter is the request
+4. Serving Static Resources: Add the following line in the main file constructor. The first parameter is the request
    path for resources, and the second is the actual file path.
 
 ```typescript
@@ -118,7 +130,7 @@ app.templates("./example/templates", {});
 app.resources("/assets", "./example/assets");
 ```
 
-4. Setting Interceptors & Global Error Handling: Create a `midware.ts` file. Both @Interceptor and @ErrorHandler
+5. Setting Interceptors & Global Error Handling: Create a `midware.ts` file. Both @Interceptor and @ErrorHandler
    decorators must be inside an @Middleware module to take effect:
 
 ```typescript

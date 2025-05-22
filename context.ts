@@ -55,7 +55,7 @@ export class HttpRequest extends Request {
     query: Record<string, string | number | boolean> = {};
 
     // The params on the request pathname
-    params?: Record<string, string | number | boolean>;
+    params: Record<string, string | number | boolean> = {};
 
     constructor(input: Request, info: Deno.ServeHandlerInfo) {
         super(input);
