@@ -105,8 +105,8 @@ export class Application {
         this.router.add({
             method, path,
             handler: handler as RouteHandler,
-            parameters: [{
-                index: 0, name: "_", // Ignores name
+            parameters: [{            // Inject HttpContext as the sole parameter
+                index: 0, name: "_",  // Ignores parameter name
                 type: HttpContext
             }]
         });
