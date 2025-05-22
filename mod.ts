@@ -100,6 +100,16 @@ export class Application {
         this.resourceOptions.fsRoot = normalize(fsRoot);
     }
 
+    /** Render template string with data. */
+    render(tmpl: string, data: unknown) {
+        this.engine.render(tmpl, data);
+    }
+
+    /** Render template file with data. */
+    view(file: string, data: unknown) {
+        this.engine.view(file, data);
+    }
+
     /** Quickly add simple route */
     private addSimpleRoute(method: string, path: string, handler: Function) {
         this.router.add({
