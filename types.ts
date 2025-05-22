@@ -28,7 +28,7 @@ export interface DynamicRoute extends BaseRoute {
     path: string;
     template?: string;
     pattern?: RegExp;
-    params?: Record<string, string>;
+    params?: Record<string, string | number | boolean>;
 }
 
 /** Interceptor route */

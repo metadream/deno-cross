@@ -51,8 +51,11 @@ export class HttpRequest extends Request {
     // The unencoded version of an encoded component of a URI
     pathname: string;
 
-    // The search params of decoded query arguments contained in a URI.
+    // The params of decoded query arguments contained in a URI.
     query: Record<string, string | number | boolean> = {};
+
+    // The params on the request pathname
+    params?: Record<string, string | number | boolean>;
 
     constructor(input: Request, info: Deno.ServeHandlerInfo) {
         super(input);

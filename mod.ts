@@ -2,7 +2,7 @@ import { STATUS_CODE } from "@std/http/status";
 import { contentType } from "@std/media-types";
 import { resolve, normalize, extname } from "@std/path";
 import { parse as parseYaml } from "@std/yaml";
-import { Config, Constructor, BaseRoute, DynamicRoute, ErrorRoute, InterceptorRoute } from "./types.ts";
+import { Config, Constructor, BaseRoute, DynamicRoute, ErrorRoute, InterceptorRoute, RouteHandler } from "./types.ts";
 import { HttpContext, HttpCookie, HttpError, HttpRequest, HttpResponse, HttpSession } from "./context.ts";
 import { Router } from "./router.ts";
 import { Engine } from "./engine.ts";
@@ -46,6 +46,34 @@ export class Application {
         });
     }
 
+    get(path: string, handler: Function) {
+        this.addSimpleRoute("GET", path, handler);
+    }
+
+    post(path: string, handler: Function) {
+        this.addSimpleRoute("POST", path, handler);
+    }
+
+    put(path: string, handler: Function) {
+        this.addSimpleRoute("PUT", path, handler);
+    }
+
+    delete(path: string, handler: Function) {
+        this.addSimpleRoute("DELETE", path, handler);
+    }
+
+    patch(path: string, handler: Function) {
+        this.addSimpleRoute("PATCH", path, handler);
+    }
+
+    head(path: string, handler: Function) {
+        this.addSimpleRoute("HEAD", path, handler);
+    }
+
+    options(path: string, handler: Function) {
+        this.addSimpleRoute("OPTIONS", path, handler);
+    }
+
     /** Load configuration file as injectable component. */
     config(path: string) {
         const content = Deno.readTextFileSync(resolve(path));
@@ -70,6 +98,18 @@ export class Application {
     resources(fsPath: string, fsRoot: string) {
         this.resourceOptions.fsPath = fsPath.endsWith("/") ? fsPath : fsPath + "/";
         this.resourceOptions.fsRoot = normalize(fsRoot);
+    }
+
+    /** Quickly add simple route */
+    private addSimpleRoute(method: string, path: string, handler: Function) {
+        this.router.add({
+            method, path,
+            handler: handler as RouteHandler,
+            parameters: [{
+                index: 0, name: "_", // Ignores name
+                type: HttpContext
+            }]
+        });
     }
 
     /** Handle dynamic route requests. */
@@ -182,8 +222,9 @@ export class Application {
     }
 
     /** Inject real arguments into route callback method. */
-    private async injectArguments(ctx: HttpContext, route: BaseRoute, error?: HttpError): Promise<any[]> {
-        const { request, response, cookie, session } = ctx;
+    private async injectArguments(context: HttpContext, route: BaseRoute, error?: HttpError): Promise<any[]> {
+        const { request, response, cookie, session } = context;
+        request.params = (route as DynamicRoute).params || {};
         const args: any[] = [];
 
         for (const arg of route.parameters || []) {
@@ -192,7 +233,7 @@ export class Application {
             switch (arg.decorator) {
                 case "Param":
                     // @Param Retrieve argument from the route path.
-                    args[index] = (route as DynamicRoute).params![name];
+                    args[index] = request.params[name];
                     break;
                 case "Query":
                     // @Query If the type is an object, pass the query object;
@@ -208,6 +249,7 @@ export class Application {
                     // @formatter:off
                     switch (type) {
                         case Engine:        args[index] = this.engine;  break;
+                        case HttpContext:   args[index] = context;      break;
                         case HttpRequest:   args[index] = request;      break;
                         case HttpResponse:  args[index] = response;     break;
                         case HttpCookie:    args[index] = cookie;       break;
