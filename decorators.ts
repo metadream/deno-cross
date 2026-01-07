@@ -172,7 +172,7 @@ function getFuncParameters(metadata: any): Parameter[] {
 
     // Merge parameters with decorators
     return paramTypes.map((type: any, index: number): Parameter => {
-        let parameter: Partial<Parameter> = metadata.decoratedParams.find((v: any) => v.index === index);
+        let parameter: Partial<Parameter> = metadata?.decoratedParams?.find((v: any) => v.index === index);
         parameter ? parameter.type = type : parameter = { index, type };
         parameter.name = paramNames[index];
         return parameter as Parameter;
