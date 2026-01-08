@@ -161,6 +161,7 @@ export class Application {
                     response.body = await this.engine.view(this.errorRoute.template, response.body);
                 }
             } else {
+                response.headers.set("Content-Type", "application/json; charset=utf-8")
                 response.body = JSON.stringify(err);
             }
         }
@@ -214,7 +215,6 @@ export class Application {
                     status: STATUS_CODE.NotFound
                 });
             }
-            console.error(err);
             return new Response("Internal Server Error: " + err.message, {
                 status: STATUS_CODE.InternalServerError
             });
