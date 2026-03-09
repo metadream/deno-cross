@@ -104,7 +104,7 @@ app.get("/test/:id", (ctx: HttpContext) => {
 
 ```typescript
 // main.ts
-app.config("./config.yaml");
+app.config("key", "./config.yaml");
 ```
 
 ```typescript
@@ -160,7 +160,7 @@ export class Midware {
 ## API References
 
 ### Application
-- `app.config(path:string)`
+- `app.config(key:string, path:string)`
 - `app.resources(fsPath: string, fsRoot: string)`
 - `app.templates(path:string, attributes?:any)`
 - `app.run(hostOrPort?: string | number, port?: number)`

@@ -75,17 +75,11 @@ export class Application {
     }
 
     /** Load configuration file as injectable component. */
-    config(path: string) {
+    config(key:string, path: string) {
         const content = Deno.readTextFileSync(resolve(path));
         const data: any = parseYaml(content);
-
-        // Dynamically add all configuration properties.
         const config = Registry.register(Config);
-        for (const [key, value] of Object.entries(data)) {
-            // Convert property key from snake_case to camelCase.
-            const camelCaseKey = key.replace(/(_\w)/g, (match) => match[1].toUpperCase())
-            config[camelCaseKey] = value;
-        }
+        config[key] = data;
     }
 
     /** Set the template root directory and global properties available in templates. */
