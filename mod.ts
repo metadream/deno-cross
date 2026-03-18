@@ -75,11 +75,29 @@ export class Application {
     }
 
     /** Load configuration file as injectable component. */
-    config(key:string, path: string) {
+    config(key:string, path?: string) {
+        let hasKey = true;
+        if (path === undefined) {
+            path = key;
+            hasKey = false;
+        }
+
         const content = Deno.readTextFileSync(resolve(path));
-        const data: any = parseYaml(content);
+        const data:any = parseYaml(content);
         const config = Registry.register(Config);
-        config[key] = data;
+        this.config = config;
+
+        if (hasKey) {
+            config[key] = data;
+        } else {
+            if (Array.isArray(data)) {
+                throw new Error("A plain array as configuration must specify a key");
+            } else {
+                for (const [k, v] of Object.entries(data)) {
+                    config[k] = v;
+                }
+            }
+        }
     }
 
     /** Set the template root directory and global properties available in templates. */
