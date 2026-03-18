@@ -104,6 +104,7 @@ app.get("/test/:id", (ctx: HttpContext) => {
 
 ```typescript
 // main.ts
+app.config("./config.yaml");
 app.config("key", "./config.yaml");
 ```
 
