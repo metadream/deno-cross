@@ -16,7 +16,7 @@ import { DynamicRoute } from "./types.ts";
 export class Router {
 
     private routes: DynamicRoute[] = [];
-    private sortRule = ["", "*", ":"];
+    private sortRule = ["", ":", "*"];
     private sorted = false;
 
     /**
